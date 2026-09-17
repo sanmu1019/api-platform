@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <title>API 管理后台</title>
+  <link rel="stylesheet" href="/static/admin.css?v=20260618-admin2">
+</head>
+<body class="admin-page admin-locked">
+<div class="admin-shell">
+  <aside class="admin-sidebar">
+    <div class="admin-brand"><span>A</span><div><b>API 管理后台</b><small>Admin Center</small></div></div>
+    <nav class="admin-menu">
+      <a href="#dashboard" class="active">仪表盘</a>
+      <a href="#site">站点设置</a>
+      <a href="#apis">接口管理</a>
+      <a href="#keys">Api-Key</a>
+      <a href="#debugger">在线调试</a>
+      <a href="#stats">调用统计</a>
+    </nav>
+    <div class="admin-auth">
+      <label>Admin-Token</label>
+      <input id="token" type="password" placeholder="输入后台 Admin-Token">
+      <button class="btn primary" onclick="login()">登录后台</button>
+      <button class="btn ghost" onclick="reloadAll()">刷新数据</button>
+      <div id="status" class="hint"></div>
+    </div>
+  </aside>
+
+  <main class="admin-content">
+    <section class="admin-hero" id="dashboard">
+      <div>
+        <span class="badge">Admin Center</span>
+        <h1>统一管理接口、文档和调用</h1>
+        <p>新增接口后自动生成首页卡片、文档页和调试入口。</p>
+      </div>
+      <div class="admin-actions"><a class="btn ghost" href="/">接口首页</a><a class="btn ghost" href="/#api-list-container">接口文档</a></div>
+    </section>
+
+    <section class="admin-stats">
+      <div><span>接口总数</span><b id="countApis">-</b></div>
+      <div><span>自定义接口</span><b id="countCustom">-</b></div>
+      <div><span>Api-Key</span><b id="countKeys">-</b></div>
+      <div><span>累计调用</span><b id="countCalls">-</b></div>
+    </section>
+
+    <section class="admin-panel" id="site">
+      <div class="panel-head"><div><h2>站点设置</h2><p>修改前台站点名称、Logo 和 Hero 文案。</p></div><button class="btn primary" onclick="saveSiteSettings()">保存设置</button></div>
+      <div class="admin-form-grid">
+        <input id="siteName" placeholder="站点名称，例如 BugPk-Api">
+        <input id="logoText" placeholder="Logo 文字，例如 B">
+        <input id="heroTitleInput" class="full" placeholder="首页标题">
+        <textarea id="heroSubtitleInput" class="full" rows="3" placeholder="首页简介"></textarea>
+      </div>
+    </section>
+
+    <section class="admin-panel" id="apis">
+      <div class="panel-head"><div><h2>接口管理</h2><p>管理接口状态、分类、文档和响应模板。</p></div><button class="btn primary" onclick="openApiForm()">新增接口</button></div>
+      <div class="admin-filter">
+        <input id="adminApiSearch" placeholder="搜索接口名称、标题、路径" oninput="renderApisTable()">
+        <select id="adminCategoryFilter" onchange="renderApisTable()"><option value="">全部分类</option></select>
+        <button class="btn ghost" onclick="clearApiFilter()">清空筛选</button>
+      </div>
+      <div id="apiForm" class="admin-form-grid hidden"></div>
+      <div id="apisTable" class="table-wrap"></div>
+    </section>
+
+    <section class="admin-panel" id="keys">
+      <div class="panel-head"><div><h2>Api-Key 管理</h2><p>公开接口默认免 Key，此处保留用于统计和兼容。</p></div></div>
+      <div class="admin-filter">
+        <input id="newKey" placeholder="key，例如 abc123">
+        <input id="newName" placeholder="名称，例如 测试用户">
+        <input id="newQuota" type="number" min="0" placeholder="每日额度，0 表示不限">
+        <button class="btn ghost" onclick="generateKey()">生成 Key</button>
+        <button class="btn primary" onclick="createKey()">创建</button>
+      </div>
+      <div id="keysTable" class="table-wrap"></div>
+    </section>
+
+    <section class="admin-panel" id="debugger">
+      <div class="panel-head"><div><h2>在线调试</h2><p>选择接口后直接发送请求验证响应。</p></div></div>
+      <div class="admin-form-grid">
+        <select id="debugApi" onchange="fillDebugPath()"></select>
+        <select id="debugMethod"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
+        <input id="debugKey" placeholder="Api-Key（公开接口免填）">
+        <input id="debugPath" class="full" placeholder="/api/xxx?name=test">
+        <textarea id="debugBody" class="full" rows="5" placeholder='POST/PUT/PATCH JSON Body，例如 {"name":"alice"}'></textarea>
+        <div class="full admin-actions"><button class="btn primary" onclick="debugRequest()">发送请求</button><button class="btn ghost" onclick="$('debugResult').textContent=''">清空结果</button></div>
+        <pre id="debugResult" class="full"></pre>
+      </div>
+    </section>
+
+    <section class="admin-panel" id="stats">
+      <div class="panel-head"><div><h2>调用统计</h2><p>接口调用、访问日志和错误统计。</p></div><div class="admin-actions"><button class="btn ghost" onclick="downloadAccessLogs()">导出访问日志</button><button class="btn ghost" onclick="downloadDatabase()">备份数据库</button></div></div>
+      <div id="statsBox"></div>
+    </section>
+  </main>
+</div>
+<script>window.__ADMIN_BASE__ = location.pathname.replace(/\/$/, "") || "/manage-api";</script>
+<script src="/static/admin.js?v=20260618-admin2"></script>
+</body>
+</html>

@@ -1,28 +1,40 @@
 ﻿from __future__ import annotations
 
+import re
+import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-import secrets
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from admin.route import router as admin_router
-from apis import register_api_routers
+from apis.main import register_api_routers
 from core.config import settings
 from core.database import API_PRESENTATION, DEFAULT_SITE_SETTINGS, get_conn, init_db
 from core.exceptions import http_exception_handler, unhandled_exception_handler, validation_exception_handler
 from core.middleware import AccessLogMiddleware, AdminIPAllowlistMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
+from core.routing import api_route_index, route_exists
 
 SITE_FALLBACK = DEFAULT_SITE_SETTINGS
 
+# 乱码判定：编码错乱会留下 U+FFFD 或典型错位汉字；而单个 "?" 是合法标点
+# （例如"这是什么?"），原来一并判为损坏，会把正常标题/描述静默覆盖成内置文案。
+# 只有连续两个以上问号才当作乱码信号。
+_BROKEN_MARKERS = ("锟", "\ufffd", "鏈", "鍚", "璇", "閹", "鐠", "閸")
+_MOJIBAKE_RE = re.compile(r"\?{2,}")
+
+
 def _looks_broken_text(value: str | None) -> bool:
     text = value or ""
-    broken_markers = ("?", "锟", "\ufffd", "鏈", "鍚", "璇", "閹", "鐠", "閸")
-    return not text or any(marker in text for marker in broken_markers)
+    if not text:
+        return True
+    if any(marker in text for marker in _BROKEN_MARKERS):
+        return True
+    return bool(_MOJIBAKE_RE.search(text))
 
 
 def _clean_site_settings(site: dict[str, str]) -> dict[str, str]:
@@ -121,8 +133,19 @@ def create_app() -> FastAPI:
     def home() -> HTMLResponse:
         return _read_frontend_page("index.html")
 
+    @app.get("/test", include_in_schema=False)
+    def api_test_console() -> HTMLResponse:
+        """接口测试台。
+
+        纯前端控制台：只从 /portal/apis 拉清单、在浏览器里发请求，
+        不含任何凭据或服务端逻辑。放在顶层路径纯粹是为了好敲 ——
+        /frontend/test.html 是同一份文件。
+        """
+        return _read_frontend_page("test.html")
+
     @app.get("/portal/apis", include_in_schema=False)
-    def portal_apis() -> dict:
+    def portal_apis(request: Request) -> dict:
+        paths, names = api_route_index(request.app)
         with get_conn() as conn:
             apis = conn.execute(
                 """
@@ -136,10 +159,25 @@ def create_app() -> FastAPI:
                 """
             ).fetchall()
             total_calls = conn.execute("SELECT COUNT(*) AS total FROM api_stats").fetchone()["total"]
+            today_calls = conn.execute(
+                """
+                SELECT COUNT(*) AS total
+                FROM api_stats
+                WHERE DATE(created_at, 'localtime') = DATE('now', 'localtime')
+                """
+            ).fetchone()["total"]
             site = _clean_site_settings(_public_site_settings(conn))
 
         rows = [_clean_api_row(dict(row)) for row in apis]
-        if not any(row["name"] == "douyin_parse" for row in rows):
+        # 数据库是「登记账本」，路由删掉之后记录会残留（init_db 只增不删）。
+        # 门户的职责是列出**可调用**的接口，所以这里按路由存在性再过滤一道 ——
+        # 否则会把实际 404 的接口展示成可用。init_db 会清理内置幽灵记录，
+        # 这一层则兜住自定义接口指向已删路由的情况。
+        rows = [
+            row for row in rows
+            if route_exists(paths, names, row["name"], row["path"], bool(row["is_builtin"]))
+        ]
+        if settings.enable_douyin and not any(row["name"] == "douyin_parse" for row in rows):
             rows.insert(0, _builtin_presentation_row("douyin_parse"))
         categories = sorted({row["category"] for row in rows if row["category"]})
         return {
@@ -151,7 +189,7 @@ def create_app() -> FastAPI:
                     "total_apis": len(rows),
                     "enabled_apis": sum(1 for row in rows if row["enabled"]),
                     "total_calls": total_calls,
-                    "today_calls": sum(row["calls"] for row in rows[:3]),
+                    "today_calls": today_calls,
                 },
                 "categories": [
                     {"name": item, "count": sum(1 for row in rows if row["category"] == item)}
@@ -181,6 +219,8 @@ def create_app() -> FastAPI:
             ).fetchone()
             site = _clean_site_settings(_public_site_settings(conn))
         if not row:
+            if name == "douyin_parse" and not settings.enable_douyin:
+                raise HTTPException(status_code=404, detail="API documentation not found")
             if name in API_PRESENTATION:
                 return {"code": 200, "msg": "success", "site": site, "data": _builtin_presentation_row(name)}
             raise HTTPException(status_code=404, detail="API documentation not found")

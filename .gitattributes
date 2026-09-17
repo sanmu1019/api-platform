@@ -1,0 +1,37 @@
+# 统一按 LF 存储**并且按 LF 检出**（含 Windows），避免跨平台整文件 diff 抖动。
+# 注意：eol=lf 的含义是"检出也用 LF"，不会在 Windows 上自动转成 CRLF。
+* text=auto eol=lf
+
+# 明确指定为文本的脚本/配置
+*.py    text eol=lf
+*.sh    text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.html  text eol=lf
+*.css   text eol=lf
+*.js    text eol=lf
+*.txt   text eol=lf
+
+# Windows 批处理/PowerShell 必须保留 CRLF，否则可能无法执行
+*.ps1   text eol=crlf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# 二进制文件不做换行转换，且 diff 时按二进制处理
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.sqlite3 binary
+*.db    binary
+*.woff  binary
+*.woff2 binary
+
+# 让 GitHub 语言统计忽略数据集与前端静态资源，突出 Python 占比
+apis/data/*.json  linguist-vendored
+apis/data/*.txt   linguist-vendored
+static/*          linguist-vendored
+frontend/assets/* linguist-vendored

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>可选调用标识</title>
+  <link rel="stylesheet" href="/frontend/assets/style.css">
+</head>
+<body>
+<header class="site-nav simple-nav"><a class="nav-brand" href="/" data-site-name>BugPk-Api</a><nav><a href="/">接口首页</a></nav></header>
+<main class="doc-page">
+  <section class="doc-hero">
+    <div>
+      <span class="badge">Public API</span>
+      <h1>接口已免费开放</h1>
+      <p>当前所有公开 API 都无需 Api-Key，可直接调用。本页仅用于可选生成调用标识，便于统计或兼容旧客户端。</p>
+    </div>
+  </section>
+  <section class="panel">
+    <h3>可选生成调用标识</h3>
+    <div class="form-grid">
+      <input id="regName" class="full" placeholder="名称，例如 我的应用 / 张三 / 测试项目">
+      <button class="btn primary" onclick="registerKey()">生成标识</button>
+      <pre id="regResult" class="full"></pre>
+    </div>
+  </section>
+  <section class="panel">
+    <h3>免费调用方式</h3>
+    <pre>curl http://127.0.0.1:8000/api/demo</pre>
+  </section>
+</main>
+<script>
+async function loadSiteName(){
+  try{
+    const res = await fetch("/portal/site");
+    const body = await res.json();
+    const name = body?.data?.site_name || "BugPk-Api";
+    document.title = name + " - 注册标识";
+    document.querySelectorAll("[data-site-name]").forEach(el => el.textContent = name);
+  }catch(_){}
+}
+async function registerKey(){
+  const result = document.getElementById("regResult");
+  const name = document.getElementById("regName").value.trim() || "公开调用用户";
+  result.textContent = "生成中...";
+  try {
+    const res = await fetch(`/register/key?name=${encodeURIComponent(name)}`, {method:"POST"});
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || data.msg || "生成失败");
+    result.textContent = `生成成功（可选使用）\n\n名称：${data.data.name}\n标识：${data.data.key}\n\n免费调用无需携带该标识：\ncurl http://127.0.0.1:8000/api/demo`;
+  } catch(e) {
+    result.textContent = e.message;
+  }
+}
+loadSiteName();
+</script>
+</body>
+</html>

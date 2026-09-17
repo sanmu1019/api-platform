@@ -1,0 +1,8 @@
+fastapi>=0.115.0,<1.0.0
+uvicorn>=0.30.0,<1.0.0
+requests>=2.31.0,<3.0.0
+pytest>=8.0.0,<9.0.0
+# fastapi.testclient(基于 starlette)在运行时需要 httpx，否则测试直接报
+# RuntimeError: The starlette.testclient module requires the httpx package。
+# 这里显式声明，保证 `pip install -r requirements.txt` 之后能直接跑 pytest。
+httpx>=0.27.0,<1.0.0

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
 from core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 API_CATALOG = [
@@ -310,18 +313,6 @@ API_CATALOG = [
         "sort_order": 250,
     },
     {
-        "name": "joke_random",
-        "path": "/api/joke/random",
-        "title": "随机笑话",
-        "description": "返回随机段子内容，适合文案和娱乐测试。",
-        "category": "内容服务",
-        "method": "GET",
-        "response_type": "builtin",
-        "response_body": "",
-        "is_builtin": 1,
-        "sort_order": 260,
-    },
-    {
         "name": "picture_cosplay",
         "path": "/api/picture/cosplay",
         "title": "图片相册",
@@ -369,19 +360,7 @@ API_CATALOG = [
         "is_builtin": 1,
         "sort_order": 300,
     },
-    {
-        "name": "university_search",
-        "path": "/api/university/search",
-        "title": "高校查询",
-        "description": "按关键词或省份查询高校基础信息。",
-        "category": "教育服务",
-        "method": "GET",
-        "response_type": "builtin",
-        "response_body": "",
-        "is_builtin": 1,
-        "sort_order": 310,
-    },
-]
+    ]
 
 DEFAULT_SITE_SETTINGS = {
     "site_name": "BugPk-Api",
@@ -408,8 +387,11 @@ def _db_path() -> Path:
 
 @contextmanager
 def get_conn() -> Iterator[sqlite3.Connection]:
-    conn = sqlite3.connect(_db_path())
+    conn = sqlite3.connect(_db_path(), timeout=10.0)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout = 10000")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA foreign_keys = ON")
     try:
         yield conn
         conn.commit()
@@ -483,6 +465,11 @@ def init_db() -> None:
             """
         )
 
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_api_stats_api_name ON api_stats(api_name)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_api_stats_created_at ON api_stats(created_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_access_logs_created_at ON access_logs(created_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_access_logs_status_code ON access_logs(status_code)")
+
         _ensure_column(conn, "apis", "category", "category TEXT NOT NULL DEFAULT '默认分类'")
         _ensure_column(conn, "apis", "method", "method TEXT NOT NULL DEFAULT 'GET'")
         _ensure_column(conn, "apis", "response_type", "response_type TEXT NOT NULL DEFAULT 'json'")
@@ -506,6 +493,33 @@ def init_db() -> None:
                 ON CONFLICT(key) DO NOTHING
                 """,
                 (key, value),
+            )
+
+        # 内置接口以 API_PRESENTATION 为准（= API_CATALOG 全部 + douyin_parse，
+        # 后者是单独登记在 API_PRESENTATION 里的），先按名单对账。
+        # 下面的 INSERT ... ON CONFLICT 只增不删，所以路由被删掉之后老记录会一直
+        # 留在库里 —— 门户就会把已经不存在的接口展示成可用（历史上 joke_random /
+        # university_search 就是这么变成"幽灵接口"的，还各带着几百次调用记录）。
+        #
+        # 用 DELETE 而不是 enabled=0：ON CONFLICT DO UPDATE 不会重置 enabled，
+        # 将来若路由恢复，停用标记会留下一个永远 403 的接口；而 DELETE 之后
+        # 名单会把它重新插回默认启用状态。api_stats 里的历史调用记录不受影响
+        # （它按 api_name 字符串记，不依赖这张表）。
+        catalog_names = sorted(API_PRESENTATION)
+        placeholders = ",".join("?" * len(catalog_names))
+        stale = conn.execute(
+            f"SELECT name FROM apis WHERE is_builtin = 1 AND name NOT IN ({placeholders})",
+            catalog_names,
+        ).fetchall()
+        if stale:
+            conn.execute(
+                f"DELETE FROM apis WHERE is_builtin = 1 AND name NOT IN ({placeholders})",
+                catalog_names,
+            )
+            logger.info(
+                "清理了 %d 个不在内置名单中的接口记录：%s",
+                len(stale),
+                ", ".join(row["name"] for row in stale),
             )
 
         for item in API_CATALOG:

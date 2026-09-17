@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>接口测试台</title>
+<link rel="stylesheet" href="/frontend/assets/style.css">
+<style>
+  .tp-wrap{max-width:1400px;margin:0 auto;padding:20px 18px 60px}
+  .tp-head{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;
+    background:#fff;border:1px solid #e6e8ef;border-radius:16px;padding:16px 20px;
+    box-shadow:0 8px 22px rgba(15,23,42,.04)}
+  .tp-head h1{margin:0;font-size:21px}
+  .tp-head p{margin:5px 0 0;color:#64748b;font-size:13px}
+  .tp-head-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .tp-head-actions label{display:flex;gap:7px;align-items:center;color:#475569;font-weight:700;font-size:13px}
+  .tp-head-actions input{border:1px solid #dbe3ef;border-radius:9px;padding:8px 11px;width:170px}
+  .tp-btn{border:0;border-radius:10px;background:#3f9ce8;color:#fff;padding:9px 16px;
+    font-weight:800;cursor:pointer;font-size:13px}
+  .tp-btn:hover{filter:brightness(1.06)}
+  .tp-btn:disabled{opacity:.5;cursor:not-allowed;filter:none}
+  .tp-btn.ghost{background:#f1f5f9;color:#475569;border:1px solid #dbe3ef}
+  .tp-btn.danger{background:#dc2626}
+  .tp-tabs{display:flex;gap:8px;margin:18px 0 0}
+  .tp-tabs button{border:1px solid #e2e8f0;background:#fff;color:#64748b;border-radius:10px;
+    padding:9px 18px;font-weight:800;cursor:pointer;font-size:13px}
+  .tp-tabs button.active{background:#3f9ce8;border-color:#3f9ce8;color:#fff}
+  .tp-pane{display:none;margin-top:16px}
+  .tp-pane.active{display:block}
+  #tab-single.active{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px}
+  @media(max-width:980px){#tab-single.active{grid-template-columns:1fr}}
+  .tp-panel{background:#fff;border:1px solid #e6e8ef;border-radius:16px;
+    box-shadow:0 8px 22px rgba(15,23,42,.04)}
+  .tp-side{padding:14px;display:flex;flex-direction:column;gap:10px;max-height:76vh}
+  .tp-side input,.tp-side select{border:1px solid #dbe3ef;border-radius:9px;padding:9px 11px;width:100%}
+  .tp-list{overflow:auto;flex:1;display:flex;flex-direction:column;gap:6px}
+  .tp-item{border:1px solid #eef2f7;border-radius:10px;padding:9px 11px;cursor:pointer;background:#fff}
+  .tp-item:hover{border-color:#3f9ce8;background:#f8fbff}
+  .tp-item.sel{border-color:#3f9ce8;background:#eaf4ff}
+  .tp-item b{display:block;font-size:13px;margin-bottom:3px}
+  .tp-item code{font-size:11px;color:#64748b;word-break:break-all}
+  .tp-item .tag{display:inline-block;border-radius:999px;padding:1px 7px;font-size:10px;
+    font-weight:800;margin-right:5px;background:#e0f2fe;color:#0284c7}
+  .tp-main{padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+  .tp-req{display:flex;gap:9px;flex-wrap:wrap}
+  .tp-req select{border:1px solid #dbe3ef;border-radius:9px;padding:9px 11px;font-weight:800;color:#2563eb}
+  .tp-req input{flex:1;min-width:220px;border:1px solid #dbe3ef;border-radius:9px;padding:9px 11px;
+    font-family:Consolas,Monaco,monospace;font-size:13px}
+  .tp-main textarea{border:1px solid #dbe3ef;border-radius:9px;padding:10px 12px;min-height:74px;
+    font-family:Consolas,Monaco,monospace;font-size:13px;resize:vertical}
+  .tp-meta{display:flex;flex-wrap:wrap;gap:9px;align-items:center;color:#475569;font-size:13px}
+  .tp-chip{border-radius:999px;padding:4px 11px;font-weight:800;font-size:12px;background:#f1f5f9;color:#475569}
+  .tp-chip.ok{background:#dcfce7;color:#16a34a}
+  .tp-chip.warn{background:#fef3c7;color:#d97706}
+  .tp-chip.err{background:#fee2e2;color:#dc2626}
+  .tp-resp{background:#282c34;color:#d7dae0;border-radius:11px;padding:15px;margin:0;
+    white-space:pre-wrap;word-break:break-word;font-size:12.5px;line-height:1.65;
+    max-height:52vh;overflow:auto;min-height:120px}
+  .tp-bulk-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .tp-bulk-bar label{display:flex;gap:6px;align-items:center;color:#475569;font-weight:700;font-size:13px}
+  .tp-table{width:100%;border-collapse:collapse;font-size:13px}
+  .tp-table th,.tp-table td{border-bottom:1px solid #eef2f7;padding:9px 10px;text-align:left;vertical-align:top}
+  .tp-table th{background:#f9fafb;color:#495057;font-size:12px;position:sticky;top:0}
+  .tp-table tbody tr:hover{background:#f8fbff}
+  .tp-table td.mono{font-family:Consolas,Monaco,monospace;font-size:12px;word-break:break-all}
+  .tp-badge{display:inline-block;border-radius:6px;padding:2px 8px;font-weight:800;font-size:12px}
+  .tp-badge.ok{background:#dcfce7;color:#16a34a}
+  .tp-badge.warn{background:#fef3c7;color:#d97706}
+  .tp-badge.err{background:#fee2e2;color:#dc2626}
+  .tp-badge.net{background:#ede9fe;color:#7c3aed}
+  .tp-scroll{max-height:64vh;overflow:auto;border:1px solid #e6e8ef;border-radius:14px;background:#fff}
+  .tp-hint{color:#94a3b8;font-size:12px}
+  .tp-loading{padding:30px;text-align:center;color:#64748b}
+</style>
+</head>
+<body>
+<div class="tp-wrap">
+
+  <header class="tp-head">
+    <div>
+      <h1>接口测试台</h1>
+      <p id="tpSummary">正在加载接口清单…</p>
+    </div>
+    <div class="tp-head-actions">
+      <label>Api-Key <input id="tpKey" placeholder="留空 = 免 Key" autocomplete="off"></label>
+      <button class="tp-btn ghost" id="tpReload">重新加载接口</button>
+    </div>
+  </header>
+
+  <div class="tp-tabs">
+    <button class="active" data-tab="single">单个测试</button>
+    <button data-tab="bulk">批量冒烟</button>
+  </div>
+
+  <!-- ============ 单个测试 ============ -->
+  <section id="tab-single" class="tp-pane active">
+    <aside class="tp-panel tp-side">
+      <input id="tpSearch" placeholder="搜索 名称 / 路径 / 描述">
+      <select id="tpCategory"><option value="">全部分类</option></select>
+      <div class="tp-hint" id="tpCount"></div>
+      <div class="tp-list" id="tpList"><div class="tp-loading">加载中…</div></div>
+    </aside>
+
+    <main class="tp-panel tp-main">
+      <div class="tp-req">
+        <select id="tpMethod">
+          <option>GET</option><option>POST</option><option>PUT</option>
+          <option>PATCH</option><option>DELETE</option>
+        </select>
+        <input id="tpPath" placeholder="/api/xxx?name=test">
+        <button class="tp-btn" id="tpSend">发送 (Ctrl+Enter)</button>
+      </div>
+      <textarea id="tpBody" placeholder='POST/PUT/PATCH 的 JSON Body，例如 {"name":"alice"}'></textarea>
+      <div class="tp-meta" id="tpMeta"><span class="tp-hint">选择左侧接口，或直接填路径发送</span></div>
+      <pre class="tp-resp" id="tpResp">// 响应会显示在这里</pre>
+    </main>
+  </section>
+
+  <!-- ============ 批量冒烟 ============ -->
+  <section id="tab-bulk" class="tp-pane">
+    <div class="tp-bulk-bar">
+      <button class="tp-btn" id="tpRunAll">开始批量测试</button>
+      <button class="tp-btn ghost" id="tpStop" disabled>停止</button>
+      <button class="tp-btn ghost" id="tpExport" disabled>导出结果 JSON</button>
+      <label><input type="checkbox" id="tpUseSamples" checked> 使用示例参数</label>
+      <label><input type="checkbox" id="tpOnlyGet" checked> 只测 GET</label>
+      <label><input type="checkbox" id="tpOnlyEnabled" checked> 只测已启用</label>
+      <span class="tp-hint" id="tpBulkHint"></span>
+    </div>
+    <div class="tp-meta" id="tpBulkSummary"></div>
+    <div class="tp-scroll" id="tpBulkTable"><div class="tp-loading">点「开始批量测试」逐个请求所有接口</div></div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  var APIS = [];
+  var CURRENT = null;
+  var BULK = { running: false, stop: false, rows: [] };
+
+  /* 内置示例参数 —— 每个值都在本机实测返回 2xx 后才写进来。
+     path 用于替换路径占位符 {x}，query 用于追加查询串。
+     没有条目的接口 = 无需参数，直接请求即可。
+     注：douyin_parse 的 url 会被接受，但抖音侧可能返回风控失败（400），
+         这是外部依赖，不是本项目的缺陷。 */
+  var SAMPLES = {
+    phone:          { path:  { phone: "13800138000" } },
+    douyin_parse:   { query: { url: "https://v.douyin.com/iRNBho6u/" } },
+    short_hash:     { query: { url: "https://example.com" } },
+    bilibili_cover: { query: { bvid: "BV1xx411c7mD" } },
+    tool_hash:      { query: { text: "hello" } },
+    tool_base64:    { query: { text: "hello" } },
+    image_qrcode:   { query: { text: "https://example.com" } },
+    news_detail:    { query: { postid: "N20260521001-0-1" } },
+    video_detail:   { query: { vid: "V10001" } },
+    idiom_search:   { query: { keyword: "一心一意" } }
+  };
+
+  function buildUrl(api, useSamples) {
+    var p = api.path || "";
+    var s = useSamples ? SAMPLES[api.name] : null;
+    if (!s) return p;
+    if (s.path) {
+      Object.keys(s.path).forEach(function (k) {
+        p = p.replace("{" + k + "}", encodeURIComponent(s.path[k]));
+      });
+    }
+    if (s.query) {
+      var qs = Object.keys(s.query).map(function (k) {
+        return encodeURIComponent(k) + "=" + encodeURIComponent(s.query[k]);
+      }).join("&");
+      if (qs) p += (p.indexOf("?") >= 0 ? "&" : "?") + qs;
+    }
+    return p;
+  }
+
+  /* ---------------- 加载接口清单 ---------------- */
+
+  function loadApis() {
+    $("tpList").innerHTML = '<div class="tp-loading">加载中…</div>';
+    return fetch("/portal/apis", { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var d = (j && j.data) || {};
+        APIS = (d.apis || []).slice();
+        var s = d.summary || {};
+        $("tpSummary").textContent =
+          "共 " + APIS.length + " 个接口 · 已启用 " + (s.enabled_apis != null ? s.enabled_apis : "?") +
+          " · 累计调用 " + (s.total_calls != null ? s.total_calls : "?") +
+          " · 今日 " + (s.today_calls != null ? s.today_calls : "?");
+        var cats = (d.categories || []).map(function (c) { return c.name; });
+        var sel = $("tpCategory");
+        sel.innerHTML = '<option value="">全部分类</option>' +
+          cats.map(function (c) {
+            return '<option value="' + esc(c) + '">' + esc(c) + "</option>";
+          }).join("");
+        renderList();
+      })
+      .catch(function (e) {
+        $("tpSummary").textContent = "接口清单加载失败：" + e.message;
+        $("tpList").innerHTML = '<div class="tp-loading">加载失败：' + esc(e.message) + "</div>";
+      });
+  }
+
+  function filtered() {
+    var kw = $("tpSearch").value.trim().toLowerCase();
+    var cat = $("tpCategory").value;
+    return APIS.filter(function (a) {
+      if (cat && a.category !== cat) return false;
+      if (!kw) return true;
+      return [a.name, a.path, a.title, a.description, a.category]
+        .join(" ").toLowerCase().indexOf(kw) >= 0;
+    });
+  }
+
+  function renderList() {
+    var rows = filtered();
+    $("tpCount").textContent = "匹配 " + rows.length + " / " + APIS.length + " 个";
+    if (!rows.length) {
+      $("tpList").innerHTML = '<div class="tp-loading">没有匹配的接口</div>';
+      return;
+    }
+    $("tpList").innerHTML = rows.map(function (a) {
+      var sel = CURRENT && CURRENT.name === a.name ? " sel" : "";
+      return '<div class="tp-item' + sel + '" data-name="' + esc(a.name) + '">' +
+        "<b>" + esc(a.title || a.name) + "</b>" +
+        '<span class="tag">' + esc(a.method || "GET") + "</span>" +
+        (a.enabled ? "" : '<span class="tag" style="background:#fee2e2;color:#dc2626">已停用</span>') +
+        "<code>" + esc(a.path) + "</code></div>";
+    }).join("");
+  }
+
+  $("tpList").addEventListener("click", function (e) {
+    var el = e.target.closest(".tp-item");
+    if (!el) return;
+    var api = APIS.filter(function (a) { return a.name === el.dataset.name; })[0];
+    if (!api) return;
+    pick(api);
+  });
+
+  function pick(api) {
+    CURRENT = api;
+    $("tpMethod").value = (api.method || "GET").toUpperCase();
+    // 有示例参数的直接带上，省得手填；没有的就用原始路径
+    $("tpPath").value = buildUrl(api, true);
+    $("tpBody").value = "";
+    $("tpResp").textContent = "// 响应会显示在这里";
+    $("tpMeta").innerHTML = '<span class="tp-hint">' + esc(api.title || api.name) +
+      (api.description ? " — " + esc(api.description) : "") + "</span>";
+    renderList();
+  }
+
+  /* ---------------- 单个请求 ---------------- */
+
+  function statusClass(code) {
+    if (code >= 200 && code < 300) return "ok";
+    if (code >= 400 && code < 500) return "warn";
+    return "err";
+  }
+
+  function pretty(text) {
+    try { return JSON.stringify(JSON.parse(text), null, 2); } catch (e) { return text; }
+  }
+
+  function send() {
+    var path = $("tpPath").value.trim();
+    if (!path) { $("tpResp").textContent = "请先填写请求路径"; return Promise.resolve(); }
+
+    var method = $("tpMethod").value;
+    var headers = {};
+    var key = $("tpKey").value.trim();
+    if (key) headers["Api-Key"] = key;
+
+    var opts = { method: method, headers: headers, credentials: "same-origin" };
+    var body = $("tpBody").value.trim();
+    if (body && method !== "GET") {
+      headers["Content-Type"] = "application/json";
+      opts.body = body;
+    }
+
+    $("tpMeta").innerHTML = '<span class="tp-chip">请求中…</span> ' +
+      '<span class="tp-hint">' + esc(method + " " + path) + "</span>";
+    var t0 = performance.now();
+
+    return fetch(path, opts).then(function (res) {
+      return res.text().then(function (text) {
+        var ms = Math.round(performance.now() - t0);
+        var bytes = new Blob([text]).size;
+        var ct = res.headers.get("content-type") || "";
+        var cls = statusClass(res.status);
+        $("tpMeta").innerHTML =
+          '<span class="tp-chip ' + cls + '">HTTP ' + res.status + " " + esc(res.statusText) + "</span>" +
+          '<span class="tp-chip">' + ms + " ms</span>" +
+          '<span class="tp-chip">' + bytes + " B</span>" +
+          (ct ? '<span class="tp-chip">' + esc(ct.split(";")[0]) + "</span>" : "") +
+          '<span class="tp-hint">' + esc(method + " " + path) + "</span>";
+        $("tpResp").textContent = pretty(text);
+        return { status: res.status, ms: ms, bytes: bytes, text: text };
+      });
+    }).catch(function (e) {
+      var ms = Math.round(performance.now() - t0);
+      $("tpMeta").innerHTML = '<span class="tp-chip err">网络错误</span>' +
+        '<span class="tp-chip">' + ms + " ms</span>" +
+        '<span class="tp-hint">' + esc(method + " " + path) + "</span>";
+      $("tpResp").textContent = String(e && e.message || e);
+      return { status: 0, ms: ms, bytes: 0, text: "", error: String(e && e.message || e) };
+    });
+  }
+
+  $("tpSend").addEventListener("click", function () { send(); });
+  $("tpReload").addEventListener("click", loadApis);
+  $("tpSearch").addEventListener("input", renderList);
+  $("tpCategory").addEventListener("change", renderList);
+
+  document.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      if ($("tab-single").classList.contains("active")) send();
+    }
+  });
+
+  /* ---------------- 批量冒烟 ---------------- */
+
+  function targets() {
+    var onlyGet = $("tpOnlyGet").checked;
+    var onlyEnabled = $("tpOnlyEnabled").checked;
+    return APIS.filter(function (a) {
+      if (onlyEnabled && !a.enabled) return false;
+      if (onlyGet && (a.method || "GET").toUpperCase() !== "GET") return false;
+      return true;
+    });
+  }
+
+  function clsOf(status) {
+    if (status === 0) return "net";
+    if (status >= 200 && status < 300) return "ok";
+    if (status >= 400 && status < 500) return "warn";
+    return "err";
+  }
+
+  function summarize() {
+    var c = { ok: 0, warn: 0, err: 0, net: 0 };
+    BULK.rows.forEach(function (r) { c[clsOf(r.status)]++; });
+    $("tpBulkSummary").innerHTML =
+      '<span class="tp-chip">共 ' + BULK.rows.length + " 个</span>" +
+      '<span class="tp-chip ok">2xx ' + c.ok + "</span>" +
+      '<span class="tp-chip warn">4xx ' + c.warn + "</span>" +
+      '<span class="tp-chip err">5xx ' + c.err + "</span>" +
+      '<span class="tp-chip" style="background:#ede9fe;color:#7c3aed">网络错误 ' + c.net + "</span>";
+  }
+
+  function renderBulk() {
+    if (!BULK.rows.length) return;
+    $("tpBulkTable").innerHTML = '<table class="tp-table"><thead><tr>' +
+      "<th>结果</th><th>接口</th><th>方法</th><th>路径</th><th>耗时</th><th>大小</th><th>摘要</th>" +
+      "</tr></thead><tbody>" +
+      BULK.rows.map(function (r) {
+        var cls = clsOf(r.status);
+        var label = r.status === 0 ? "ERR" : r.status;
+        var summary = (r.text || r.error || "").replace(/\s+/g, " ").slice(0, 110);
+        return '<tr><td><span class="tp-badge ' + cls + '">' + esc(label) + "</span></td>" +
+          "<td>" + esc(r.title || r.name) + "</td>" +
+          "<td>" + esc(r.method) + "</td>" +
+          '<td class="mono">' + esc(r.path) + "</td>" +
+          "<td>" + (r.ms == null ? "-" : r.ms + " ms") + "</td>" +
+          "<td>" + (r.bytes == null ? "-" : r.bytes + " B") + "</td>" +
+          '<td class="mono">' + esc(summary) + "</td></tr>";
+      }).join("") + "</tbody></table>";
+    summarize();
+  }
+
+  function runAll() {
+    var list = targets();
+    if (!list.length) { $("tpBulkHint").textContent = "没有符合条件的接口"; return; }
+
+    BULK = { running: true, stop: false, rows: [] };
+    $("tpRunAll").disabled = true;
+    $("tpStop").disabled = false;
+    $("tpExport").disabled = true;
+    $("tpBulkTable").innerHTML = "";
+
+    var key = $("tpKey").value.trim();
+    var useSamples = $("tpUseSamples").checked;
+    var done = 0;
+
+    function step(i) {
+      if (BULK.stop || i >= list.length) {
+        BULK.running = false;
+        $("tpRunAll").disabled = false;
+        $("tpStop").disabled = true;
+        $("tpExport").disabled = BULK.rows.length === 0;
+        $("tpBulkHint").textContent = BULK.stop
+          ? "已停止（" + done + "/" + list.length + "）"
+          : "完成 " + done + "/" + list.length;
+        renderBulk();
+        return;
+      }
+      var a = list[i];
+      var method = (a.method || "GET").toUpperCase();
+      var url = buildUrl(a, useSamples);
+      var headers = {};
+      if (key) headers["Api-Key"] = key;
+      var t0 = performance.now();
+      $("tpBulkHint").textContent = "测试中 " + (i + 1) + "/" + list.length + "：" + url;
+
+      fetch(url, { method: method, headers: headers, credentials: "same-origin" })
+        .then(function (res) {
+          return res.text().then(function (text) {
+            BULK.rows.push({
+              name: a.name, title: a.title, method: method, path: url,
+              status: res.status, ms: Math.round(performance.now() - t0),
+              bytes: new Blob([text]).size, text: text
+            });
+          });
+        })
+        .catch(function (e) {
+          BULK.rows.push({
+            name: a.name, title: a.title, method: method, path: url,
+            status: 0, ms: Math.round(performance.now() - t0), bytes: 0,
+            error: String(e && e.message || e)
+          });
+        })
+        .then(function () {
+          done++;
+          renderBulk();
+          // 每个请求间隔 120ms：既是给 UI 渲染留时间，也避免撞上限流阈值
+          setTimeout(function () { step(i + 1); }, 120);
+        });
+    }
+
+    step(0);
+  }
+
+  $("tpRunAll").addEventListener("click", runAll);
+  $("tpStop").addEventListener("click", function () { BULK.stop = true; });
+  $("tpExport").addEventListener("click", function () {
+    var payload = {
+      generated_at: new Date().toISOString(),
+      origin: location.origin,
+      api_key_used: $("tpKey").value.trim() ? "(已填)" : "(空)",
+      total: BULK.rows.length,
+      rows: BULK.rows
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "api-test-result-" + new Date().toISOString().replace(/[:.]/g, "-") + ".json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  /* ---------------- Tab 切换 ---------------- */
+
+  document.querySelectorAll(".tp-tabs button").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.querySelectorAll(".tp-tabs button").forEach(function (b) { b.classList.remove("active"); });
+      document.querySelectorAll(".tp-pane").forEach(function (p) { p.classList.remove("active"); });
+      btn.classList.add("active");
+      $("tab-" + btn.dataset.tab).classList.add("active");
+    });
+  });
+
+  loadApis();
+})();
+</script>
+</body>
+</html>

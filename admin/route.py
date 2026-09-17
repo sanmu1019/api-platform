@@ -2,6 +2,7 @@
 
 import json
 import re
+import sqlite3
 import time
 from collections import defaultdict, deque
 from io import StringIO
@@ -10,13 +11,14 @@ from typing import Any
 import csv
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 
 from core.config import settings
 from core.database import API_PRESENTATION, DEFAULT_SITE_SETTINGS, get_conn
 from core.depends import verify_admin_token
 from core.middleware import client_ip
+from core.routing import api_route_index, route_exists
 
 router = APIRouter(prefix=settings.normalized_admin_path, tags=["admin"])
 
@@ -25,15 +27,25 @@ _METHODS = {"GET", "POST", "PUT", "PATCH", "DELETE"}
 _RESPONSE_TYPES = {"json", "text", "html"}
 _BUILTIN_LOCKED_FIELDS = {"path", "method", "response_type", "response_body", "status_code"}
 _LOGIN_FAILS: dict[str, deque[float]] = defaultdict(deque)
+_LOGIN_FAILS_SWEPT_AT = 0.0
 _SITE_SETTING_KEYS = {"site_name", "logo_text", "hero_title", "hero_subtitle"}
 _SITE_SETTING_LIMITS = {"site_name": 80, "logo_text": 12, "hero_title": 160, "hero_subtitle": 500}
 
 ADMIN_SITE_FALLBACK = DEFAULT_SITE_SETTINGS
 ADMIN_API_PRESENTATION = API_PRESENTATION
 
+# 与 main.py 中同名函数保持一致：单个 "?" 是合法标点，只有连续多个才说明是解码乱码。
+_BROKEN_MARKERS = ("锟", "\ufffd", "鏈", "鍚", "璇", "閹", "鐠", "閸")
+_MOJIBAKE_RE = re.compile(r"\?{2,}")
+
+
 def _looks_broken_text(value: str | None) -> bool:
     text = value or ""
-    return not text or "?" in text or "\ufffd" in text or "\u93c8" in text or "\u935a" in text or "\u7487" in text or "\u95ab" in text
+    if not text:
+        return True
+    if any(marker in text for marker in _BROKEN_MARKERS):
+        return True
+    return bool(_MOJIBAKE_RE.search(text))
 
 
 def _clean_site_settings_for_admin(data: dict[str, str]) -> dict[str, str]:
@@ -82,32 +94,32 @@ def _validate_path(name: str, path: str) -> str:
     expected = f"/api/{name}"
     legacy = f"/api/custom/{name}"
     if path not in {expected, legacy}:
-        raise HTTPException(status_code=400, detail=f"鑷畾涔夋帴鍙ｈ矾寰勫繀椤讳负 {expected} 鎴栧吋瀹硅矾寰?{legacy}")
+        raise HTTPException(status_code=400, detail=f"自定义接口路径必须为 {expected} 或兼容路径 {legacy}")
     return path
 
 
 def _validate_method(method: str) -> str:
     method = method.strip().upper()
     if method not in _METHODS:
-        raise HTTPException(status_code=400, detail="涓嶆敮鎸佺殑 HTTP 鏂规硶")
+        raise HTTPException(status_code=400, detail="不支持的 HTTP 方法")
     return method
 
 
 def _validate_response(response_type: str, response_body: str) -> tuple[str, str]:
     response_type = response_type.strip().lower()
     if response_type not in _RESPONSE_TYPES:
-        raise HTTPException(status_code=400, detail="鍝嶅簲绫诲瀷鍙兘鏄?json銆乼ext 鎴?html")
+        raise HTTPException(status_code=400, detail="响应类型只能是 json、text 或 html")
     if response_type == "json":
         try:
             json.loads(response_body or "{}")
         except json.JSONDecodeError as exc:
-            raise HTTPException(status_code=400, detail='JSON 鍝嶅簲鍐呭鏍煎紡閿欒锛涙ā鏉垮彉閲忚鏀惧湪瀛楃涓蹭腑锛屼緥濡?"{{query.name}}"') from exc
+            raise HTTPException(status_code=400, detail='JSON 响应内容格式错误；模板变量请放在字符串中，例如 "{{query.name}}"') from exc
     return response_type, response_body
 
 
 def _validate_status_code(status_code: int) -> int:
     if not 100 <= status_code <= 599:
-        raise HTTPException(status_code=400, detail="鐘舵€佺爜蹇呴』鍦?100-599 涔嬮棿")
+        raise HTTPException(status_code=400, detail="状态码必须在 100-599 之间")
     return status_code
 
 
@@ -115,20 +127,45 @@ def _changed(value: Any) -> bool:
     return value is not None
 
 
+def _sweep_login_fails(now: float) -> None:
+    """回收过期的登录失败记录。
+
+    键是客户端 IP，攻击者不断换 IP 就能持续堆积，不回收同样会缓慢吃内存。
+    每 window 秒最多扫一次。
+    """
+    global _LOGIN_FAILS_SWEPT_AT
+    window = max(1, settings.admin_login_fail_window_seconds)
+    if now - _LOGIN_FAILS_SWEPT_AT < window:
+        return
+    _LOGIN_FAILS_SWEPT_AT = now
+    stale = [ip for ip, q in _LOGIN_FAILS.items() if not q or now - q[-1] > window]
+    for ip in stale:
+        _LOGIN_FAILS.pop(ip, None)
+
+
 @router.post("/login")
-def login(response: Response, token: str, request: Request) -> dict:
+def login(
+    response: Response,
+    request: Request,
+    payload: dict[str, str] | None = Body(default=None),
+    token: str | None = Query(default=None),
+) -> dict:
+    token = token or ((payload or {}).get("token") or "")
+    if not token:
+        raise HTTPException(status_code=400, detail="Admin-Token 不能为空")
     ip = client_ip(request)
     now = time.time()
-    q = _LOGIN_FAILS[ip]
     window = max(1, settings.admin_login_fail_window_seconds)
+    _sweep_login_fails(now)
+    q = _LOGIN_FAILS[ip]
     while q and now - q[0] > window:
         q.popleft()
     if len(q) >= max(1, settings.admin_login_fail_limit):
-        raise HTTPException(status_code=429, detail="鐧诲綍澶辫触娆℃暟杩囧锛岃绋嶅悗鍐嶈瘯")
+        raise HTTPException(status_code=429, detail="登录失败次数过多，请稍后再试")
 
     if not compare_digest(token, settings.admin_token):
         q.append(now)
-        raise HTTPException(status_code=403, detail="Admin-Token 閿欒")
+        raise HTTPException(status_code=403, detail="Admin-Token 错误")
     q.clear()
     response.set_cookie(
         key="admin_token",
@@ -141,7 +178,7 @@ def login(response: Response, token: str, request: Request) -> dict:
     )
     return {
         "code": 200,
-        "msg": "鐧诲綍鎴愬姛",
+        "msg": "登录成功",
         "data": {"user": "admin", "expires_in": 60 * 60 * 8, "login_ip": ip},
     }
 
@@ -168,9 +205,9 @@ def get_site_settings() -> dict:
 def update_site_settings(payload: dict[str, str]) -> dict:
     unknown = set(payload) - _SITE_SETTING_KEYS
     if unknown:
-        raise HTTPException(status_code=400, detail=f"????????{', '.join(sorted(unknown))}")
+        raise HTTPException(status_code=400, detail=f"不支持的站点配置项：{', '.join(sorted(unknown))}")
     if not payload:
-        raise HTTPException(status_code=400, detail="????????")
+        raise HTTPException(status_code=400, detail="没有可更新的站点配置")
     cleaned = {key: _clean_site_value(key, str(value)) for key, value in payload.items()}
     with get_conn() as conn:
         for key, value in cleaned.items():
@@ -183,7 +220,7 @@ def update_site_settings(payload: dict[str, str]) -> dict:
                 (key, value),
             )
         data = _clean_site_settings_for_admin(_site_settings(conn))
-    return {"code": 200, "msg": "???????", "data": data}
+    return {"code": 200, "msg": "站点配置已更新", "data": data}
 
 
 @router.get("", response_class=HTMLResponse)
@@ -227,16 +264,7 @@ def categories() -> dict:
 
 @router.get("/route-check", dependencies=[Depends(verify_admin_token)])
 def route_check(request: Request) -> dict:
-    route_paths = {
-        getattr(route, "path", "")
-        for route in request.app.routes
-        if getattr(route, "path", "").startswith("/api")
-    }
-    route_names = {
-        getattr(route, "name", "")
-        for route in request.app.routes
-        if getattr(route, "path", "").startswith("/api")
-    }
+    route_paths, route_names = api_route_index(request.app)
     with get_conn() as conn:
         rows = conn.execute(
             "SELECT name, path, title, is_builtin FROM apis ORDER BY sort_order ASC, name ASC"
@@ -244,10 +272,7 @@ def route_check(request: Request) -> dict:
 
     data = []
     for row in rows:
-        path = row["path"]
-        exists = path in route_paths or row["name"] in route_names
-        if not exists and not row["is_builtin"]:
-            exists = "/api/{slug}" in route_paths or "/api/custom/{slug}" in route_paths
+        exists = route_exists(route_paths, route_names, row["name"], row["path"], bool(row["is_builtin"]))
         clean = _clean_api_row_for_admin(dict(row))
         data.append(
             {
@@ -293,9 +318,12 @@ def create_api(
                 """,
                 (name, path, title.strip(), description.strip(), category.strip() or "自定义", method, response_type, response_body, status_code, 1 if enabled else 0, sort_order),
             )
-        except Exception as exc:
-            raise HTTPException(status_code=400, detail="API already exists or parameters are invalid") from exc
-    return {"code": 200, "msg": "鎴愬姛", "data": {"name": name, "path": path, "doc": f"/doc/{name}.html"}}
+        except sqlite3.IntegrityError as exc:
+            # 只把主键/唯一约束冲突解释成"已存在"。
+            # 原先捕获的是 Exception，数据库锁、磁盘错误之类也会被伪装成 400
+            # "参数非法"，线上排查时完全看不出真实原因。
+            raise HTTPException(status_code=400, detail="API 名称或路径已存在") from exc
+    return {"code": 200, "msg": "成功", "data": {"name": name, "path": path, "doc": f"/doc/{name}.html"}}
 
 
 @router.patch("/apis/{name}", dependencies=[Depends(verify_admin_token)])
@@ -350,7 +378,7 @@ def update_api(
             """,
             (path, title.strip() if title is not None else None, description.strip() if description is not None else None, category.strip() if category is not None else None, method, response_type, response_body, status_code, sort_order, 1 if enabled is True else 0 if enabled is False else None, name),
         )
-    return {"code": 200, "msg": "鎴愬姛", "data": {"name": name, "enabled": enabled}}
+    return {"code": 200, "msg": "成功", "data": {"name": name, "enabled": enabled}}
 
 
 @router.delete("/apis/{name}", dependencies=[Depends(verify_admin_token)])
@@ -362,7 +390,7 @@ def delete_api(name: str) -> dict:
         if row["is_builtin"]:
             raise HTTPException(status_code=400, detail="Built-in APIs cannot be deleted")
         conn.execute("DELETE FROM apis WHERE name = ?", (name,))
-    return {"code": 200, "msg": "鎴愬姛"}
+    return {"code": 200, "msg": "成功"}
 
 
 @router.get("/keys", dependencies=[Depends(verify_admin_token)])
@@ -395,9 +423,10 @@ def create_key(key: str, name: str = "new user", quota_per_day: int = 0) -> dict
                 """,
                 (key, name, quota_per_day),
             )
-        except Exception as exc:
-            raise HTTPException(status_code=400, detail="Key already exists or parameters are invalid") from exc
-    return {"code": 200, "msg": "鎴愬姛", "data": {"key": key, "name": name, "enabled": 1, "quota_per_day": quota_per_day}}
+        except sqlite3.IntegrityError as exc:
+            # 同上：只把唯一约束冲突当成"Key 已存在"，其余异常交给全局处理器记录堆栈。
+            raise HTTPException(status_code=400, detail="Key 已存在") from exc
+    return {"code": 200, "msg": "成功", "data": {"key": key, "name": name, "enabled": 1, "quota_per_day": quota_per_day}}
 
 
 @router.patch("/keys/{key}", dependencies=[Depends(verify_admin_token)])
@@ -416,7 +445,7 @@ def update_key(key: str, enabled: bool | None = Query(None), quota_per_day: int 
         )
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Resource not found")
-    return {"code": 200, "msg": "鎴愬姛", "data": {"key": key, "enabled": enabled, "quota_per_day": quota_per_day}}
+    return {"code": 200, "msg": "成功", "data": {"key": key, "enabled": enabled, "quota_per_day": quota_per_day}}
 
 
 @router.delete("/keys/{key}", dependencies=[Depends(verify_admin_token)])
@@ -425,7 +454,7 @@ def delete_key(key: str) -> dict:
         cur = conn.execute("DELETE FROM api_keys WHERE key = ?", (key,))
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Resource not found")
-    return {"code": 200, "msg": "鎴愬姛"}
+    return {"code": 200, "msg": "成功"}
 
 
 @router.get("/stats", dependencies=[Depends(verify_admin_token)])
@@ -473,6 +502,23 @@ def stats() -> dict:
     }
 
 
+@router.get("/douyin-health", dependencies=[Depends(verify_admin_token)])
+def douyin_health() -> dict:
+    """抖音解析健康状态。
+
+    `a_bogus` 是逆向签名，抖音换算法会导致解析**持续**失败，且症状和
+    "链接失效"一模一样。把连续失败次数暴露出来，才能接监控告警
+    （例如连续失败 >= 3 就报警），而不是等用户反馈才发现。
+    """
+    if not settings.enable_douyin:
+        return {"code": 200, "msg": "disabled", "data": {"enabled": False}}
+
+    # 延迟导入：enable_douyin 为 false 时不需要拉起抖音模块。
+    from apis.douyin.detail_api import signature_health
+
+    return {"code": 200, "msg": "success", "data": {"enabled": True, **signature_health()}}
+
+
 @router.get("/access-logs", dependencies=[Depends(verify_admin_token)])
 def access_logs(limit: int = Query(50, ge=1, le=500), status_min: int | None = None) -> dict:
     sql = """
@@ -490,6 +536,22 @@ def access_logs(limit: int = Query(50, ge=1, le=500), status_min: int | None = N
     return {"code": 200, "data": [dict(row) for row in rows]}
 
 
+_CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv_safe(value: Any) -> Any:
+    """防 CSV 公式注入。
+
+    user_agent / path 等字段完全由调用方控制，若以 = + - @ 开头，
+    用 Excel 打开导出文件时会被当作公式执行。加前缀单引号使其保持文本。
+    """
+    if not isinstance(value, str) or not value:
+        return value
+    if value.startswith(_CSV_FORMULA_PREFIXES):
+        return "'" + value
+    return value
+
+
 @router.get("/access-logs.csv", dependencies=[Depends(verify_admin_token)])
 def access_logs_csv(limit: int = Query(1000, ge=1, le=10000), status_min: int | None = None):
     data = access_logs(limit=limit, status_min=status_min)["data"]
@@ -499,7 +561,7 @@ def access_logs_csv(limit: int = Query(1000, ge=1, le=10000), status_min: int | 
         fieldnames=["id", "method", "path", "status_code", "duration_ms", "client_ip", "user_agent", "api_key", "created_at"],
     )
     writer.writeheader()
-    writer.writerows(data)
+    writer.writerows({key: _csv_safe(value) for key, value in row.items()} for row in data)
     output.seek(0)
     return StreamingResponse(
         iter([output.getvalue()]),
@@ -512,7 +574,7 @@ def access_logs_csv(limit: int = Query(1000, ge=1, le=10000), status_min: int | 
 def backup_database():
     path = Path(settings.database_path)
     if not path.exists():
-        raise HTTPException(status_code=404, detail="鏁版嵁搴撴枃浠朵笉瀛樺湪")
+        raise HTTPException(status_code=404, detail="数据库文件不存在")
     return FileResponse(
         path,
         media_type="application/octet-stream",

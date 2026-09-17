@@ -1,0 +1,15 @@
+[Unit]
+Description=API Platform
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/api-platform
+ExecStart=/opt/api-platform/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=3
+User=api
+Group=api
+
+[Install]
+WantedBy=multi-user.target

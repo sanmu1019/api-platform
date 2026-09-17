@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+
+# 同一分支的新推送自动取消上一次未完成的运行
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pytest (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 仓库不提交 config.json，这里直接验证"默认配置 + 环境变量覆盖"能否启动。
+      # tests/conftest.py 会把数据库指向临时目录，不会污染仓库。
+      - name: 运行测试
+        env:
+          API_PLATFORM_ENVIRONMENT: development
+          API_PLATFORM_HOST: 127.0.0.1
+        run: python -m pytest -q
+
+  import-check:
+    name: 应用可导入性检查
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 能 import main 说明路由/配置在无 config.json 的干净环境下也能装配成功
+      - name: 导入 main
+        run: python -c "import main; print('routes:', len(main.app.routes))"

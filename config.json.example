@@ -1,0 +1,22 @@
+{
+  "app_name": "API 聚合管理平台",
+  "environment": "development",
+  "debug": false,
+  "host": "0.0.0.0",
+  "port": 8000,
+  "database_path": "./data/api_platform.sqlite3",
+  "admin_token": "admin888",
+  "default_api_keys": "test123:测试用户",
+  "cors_origins": "",
+  "enable_douyin": true,
+  "require_api_key": false,
+  "rate_limit_per_minute": 120,
+  "self_register_quota_per_day": 1000,
+  "public_security_enabled": true,
+  "allow_self_register": true,
+  "admin_ip_allowlist": "",
+  "admin_login_fail_limit": 5,
+  "admin_login_fail_window_seconds": 300,
+  "admin_public_path": "/manage-api",
+  "show_admin_entry": true
+}

@@ -16,7 +16,7 @@ This repository is a FastAPI-based API portal with a small static frontend.
 ## Build, Test, and Development Commands
 - `python -m venv .venv` then `.venv\Scripts\activate`: create and activate a local virtual environment on Windows.
 - `pip install -r requirements.txt`: install FastAPI, Uvicorn, pytest, and related dependencies.
-- `copy .env.example .env`: bootstrap local configuration.
+- `copy config.json.example config.json`: bootstrap local configuration.
 - `python main.py`: start the app locally, defaulting to `http://127.0.0.1:8000`.
 - `python -m pytest -q`: run the automated test suite.
 - `python scripts/smoke_test.py`: run basic endpoint smoke checks.
@@ -33,4 +33,4 @@ Add or update pytest coverage for any backend behavior change. Place tests in `t
 Git history is not available in this checkout, so use short, imperative commit messages such as `add admin login rate limit` or `fix tool hash response`. Keep each commit focused. Pull requests should include: a concise summary, affected routes/files, config changes, test results, and screenshots for frontend/admin page updates.
 
 ## Security & Configuration Tips
-Do not commit secrets in `.env`. Replace default admin and API keys outside local development. Review `ADMIN_PUBLIC_PATH`, self-registration, allowlists, and rate-limit settings before deployment.
+Do not commit secrets in `config.json`. Replace default admin and API keys outside local development. Review `ADMIN_PUBLIC_PATH`, self-registration, allowlists, and rate-limit settings before deployment.
