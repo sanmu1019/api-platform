@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <title>BugPk-Api &#39118;&#26684;&#25509;&#21475;&#24179;&#21488;</title>
+  <meta name="description" content="&#20813;&#36153;&#20844;&#30410; API &#25509;&#21475;&#24179;&#21488;">
+  <!-- 每日短语 -->
+  <link rel="stylesheet" href="/frontend/assets/style.css?v=20260618-fix2">
+</head>
+<body>
+<div class="bp-shell">
+  <aside class="bp-sidebar" id="bpSidebar">
+    <div class="bp-side-brand"><span class="bp-logo">B</span><b data-site-name>BugPk-Api</b></div>
+    <a class="active" href="/">&#39318;&#39029;</a>
+    <a href="#api-list-container">&#25509;&#21475;&#21015;&#34920;</a>
+    <a href="/doc/douyin_parse.html">&#25238;&#38899;&#35299;&#26512;</a>
+    <a href="/#api-list-container">&#25509;&#21475;&#25991;&#26723;</a>
+    <button type="button" onclick="toggleDarkMode()">&#28145;&#33394;&#27169;&#24335;</button>
+  </aside>
+  <section class="bp-main">
+    <header class="bp-topbar">
+      <button class="bp-menu" type="button" onclick="toggleSidebar()">&#9776;</button>
+      <a class="bp-top-brand" href="/"><span class="bp-logo small">B</span><span data-site-name>BugPk-Api</span></a>
+      <nav><a href="/">&#39318;&#39029;</a><a href="/register">&#27880;&#20876; Key</a><a href="/#api-list-container">&#25509;&#21475;&#25991;&#26723;</a></nav>
+    </header>
+    <main class="simple-portal">
+      <section class="bp-hero simple-hero">
+        <div class="bp-shape one"></div><div class="bp-shape two"></div>
+        <div class="bp-hero-inner">
+          <span class="bp-badge">&#20844;&#30410; · &#20813;&#36153; · API Service</span>
+          <h1 id="heroTitle">&#20813;&#36153;&#20844;&#30410; API &#25509;&#21475;&#24179;&#21488;</h1>
+          <p id="heroSubtitle">&#25552;&#20379;&#30701;&#35270;&#39057;&#21435;&#27700;&#21360;&#35299;&#26512;&#12289;&#24320;&#21457;&#32773;&#24037;&#20855;&#12289;&#20869;&#23481;&#32858;&#21512;&#12289;&#22270;&#29255;&#26381;&#21153;&#31561;&#25509;&#21475;&#65292;&#25903;&#25345;&#22312;&#32447;&#25628;&#32034;&#12289;&#20998;&#31867;&#31579;&#36873;&#21644;&#25991;&#26723;&#35843;&#35797;&#12290;</p>
+          <div class="bp-search">
+            <span>&#8981;</span>
+            <input id="apiSearch" placeholder="&#25628;&#32034; API &#25509;&#21475;&#65292;&#20363;&#22914;&#65306;&#25238;&#38899; / &#19968;&#35328; / hash / IP">
+            <button type="button" onclick="performSearch()">&#25628;&#32034;</button>
+          </div>
+          <div class="bp-stats">
+            <div><span>&#25509;&#21475;&#24635;&#25968;</span><b id="home-api-count">-</b></div>
+            <div><span>&#20170;&#26085;&#35843;&#29992;</span><b id="home-today-count">-</b></div>
+            <div><span>&#32047;&#35745;&#35843;&#29992;</span><b id="home-total-count">-</b></div>
+            <div><span>&#36816;&#34892;&#29366;&#24577;</span><b class="ok">&#27491;&#24120;</b></div>
+          </div>
+        </div>
+      </section>
+      <section class="bp-content">
+        <div class="bp-toolbar">
+          <div><h2>&#25509;&#21475;&#21015;&#34920;</h2><p>&#24403;&#21069;&#26174;&#31034; <b id="visible-count">0</b> / &#20849; <span id="total-count">0</span> &#20010;&#25509;&#21475;</p></div>
+          <div class="bp-filters">
+            <select id="category-filter" onchange="filterByCategory(this.value)"><option value="0">&#20840;&#37096;&#20998;&#31867;</option></select>
+            <select id="status-filter" onchange="filterApi(this.value)"><option value="all">&#20840;&#37096;&#29366;&#24577;</option><option value="on">&#27491;&#24120;&#36816;&#34892;</option><option value="maintain">&#32500;&#25252;&#20013;</option></select>
+          </div>
+        </div>
+        <div id="loading-spinner" class="bp-loading">&#27491;&#22312;&#21152;&#36733;&#25509;&#21475;&#25968;&#25454;...</div>
+        <div id="api-list-container" class="bp-grid simple-grid"></div>
+        <div id="no-result" class="bp-empty" hidden>&#27809;&#26377;&#25214;&#21040;&#21305;&#37197;&#30340; API &#25509;&#21475;</div>
+      </section>
+      <section class="bp-phrase"><span>&#27599;&#26085;&#30701;&#35821;</span><h2 id="footerPhrase">&#25509;&#21475;&#31283;&#23450;&#36816;&#34892;&#65292;&#36866;&#21512;&#24320;&#21457;&#35843;&#35797;&#19982;&#29983;&#20135;&#25509;&#20837;&#12290;</h2></section>
+    </main>
+  </section>
+</div>
+<script src="/frontend/assets/app.js?v=20260618-fix2"></script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+__pycache__/
+*.py[cod]
+.Python
+.pytest_cache/
+.venv/
+venv/
+env/
+config.json
+config.production.json
+data/*.sqlite3
+data/*.sqlite3-*
+data/*.db
+data/*.db-*
+backup/
+dist/
+tmp_*
+11.txt
+卡片ID.txt
+*.log
+
+# 本地/一次性备份文件
+*.bak
+*.orig
+*.rej
+
+# 环境变量文件（模板 .env.example 需提交）
+.env
+.env.local
+
+# 编辑器与操作系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# 工作区记忆与本地助手数据（含内部审计记录，不入库）
+.workbuddy-ai/
+.agents/
+
+# 内部审计与过程文档（含默认凭据、备份路径、历史漏洞细节）
+# 仓库计划公开，这几份仅本地留存，不进版本库。
+AUDIT.md
+GITHUB_DEPLOY.md
+API_TEST_REPORT.md
+PROGRESS.md
+CURL_TESTS.md
+
+# 历史语料内容过滤词表。词表本身就是敏感词清单，不进公开仓库。
+# tools/build_datasets.py 重建语料时会读取它（缺失则打印告警并跳过过滤）。
+apis/data/history_today.blocklist.txt

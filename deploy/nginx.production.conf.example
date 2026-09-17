@@ -1,0 +1,97 @@
+# ============================================================================
+# 生产环境 Nginx 反向代理示例（HTTPS）
+#
+# 为什么必须有 HTTPS：
+#   admin/route.py 中登录 Cookie 是 secure=settings.is_production。
+#   也就是说一旦把 environment 设为 production，Cookie 就会带上 Secure 标记，
+#   浏览器只会在 HTTPS 连接上保存它 —— 纯 HTTP 访问后台会表现为"登录没反应"。
+#   所以顺序必须是：先配好 HTTPS，再切 production。
+#
+# 用法：
+#   sudo cp deploy/nginx.production.conf.example /etc/nginx/sites-available/api-platform
+#   sudo sed -i 's/api.example.com/你的域名/g' /etc/nginx/sites-available/api-platform
+#   sudo ln -s /etc/nginx/sites-available/api-platform /etc/nginx/sites-enabled/
+#   sudo certbot --nginx -d 你的域名      # 自动签发并写入证书路径
+#   sudo nginx -t && sudo systemctl reload nginx
+# ============================================================================
+
+# ---------- 1) HTTP：仅用于 ACME 校验 + 全量跳转 HTTPS ----------
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.example.com;
+
+    # certbot 的 http-01 校验走这里，必须放在 return 301 之前
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# ---------- 2) HTTPS：真正的服务入口 ----------
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name api.example.com;
+
+    # certbot 签发后自动指向这两条路径
+    ssl_certificate     /etc/letsencrypt/live/api.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.example.com/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    # HSTS 由应用自身在 production 下下发（core/middleware.py），
+    # 这里不再重复设置，避免出现两个同名响应头。
+
+    # 上传类接口如用不到可以调小；0 表示不限制
+    client_max_body_size 8m;
+    client_body_timeout 30s;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
+    gzip_min_length 1024;
+
+    access_log /var/log/nginx/api-platform.access.log;
+    error_log  /var/log/nginx/api-platform.error.log warn;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+
+        # 这三行决定了后端能否拿到真实客户端信息：
+        #   X-Real-IP / X-Forwarded-For -> 限流与 admin_ip_allowlist 的判定依据
+        #   X-Forwarded-Proto          -> 保留原始协议，便于后续排查
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_connect_timeout 5s;
+        proxy_send_timeout    60s;
+        proxy_read_timeout    60s;
+
+        # 上游挂掉时返回 502 而不是挂住连接
+        proxy_next_upstream error timeout http_502 http_503 http_504;
+    }
+
+    # ---------- 可选：后台路径只允许办公网 / 固定 IP 访问 ----------
+    # 更稳妥的做法是双层防护：Nginx 白名单 + config.json 里的 admin_ip_allowlist。
+    # location /manage-api/ {
+    #     allow 203.0.113.0/24;   # 换成你的办公网段或固定出口 IP
+    #     deny  all;
+    #     proxy_pass http://127.0.0.1:8000;
+    #     proxy_set_header Host              $host;
+    #     proxy_set_header X-Real-IP         $remote_addr;
+    #     proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    #     proxy_set_header X-Forwarded-Proto $scheme;
+    # }
+}

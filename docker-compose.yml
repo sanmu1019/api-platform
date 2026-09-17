@@ -1,0 +1,21 @@
+services:
+  api-platform:
+    build: .
+    container_name: api-platform
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # 容器内 uvicorn 监听 0.0.0.0，这里同步告诉应用真实监听地址，
+      # 否则 core/config.py 的安全校验会以为服务只在回环地址上，
+      # 从而对"已对外暴露但仍是弱口令"的情况保持沉默。
+      API_PLATFORM_HOST: "0.0.0.0"
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
