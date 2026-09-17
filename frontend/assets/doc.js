@@ -225,7 +225,7 @@ function codeExamples(fullUrl, method) {
 }
 
 function applyDocSiteSettings(site) {
-  const siteName = site?.site_name || "BugPk-Api";
+  const siteName = site?.site_name || "绿夜API";
   document.querySelectorAll("[data-site-name]").forEach(el => { el.textContent = siteName; });
   return siteName;
 }

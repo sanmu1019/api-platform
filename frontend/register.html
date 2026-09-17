@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/frontend/assets/style.css">
 </head>
 <body>
-<header class="site-nav simple-nav"><a class="nav-brand" href="/" data-site-name>BugPk-Api</a><nav><a href="/">接口首页</a></nav></header>
+<header class="site-nav simple-nav"><a class="nav-brand" href="/" data-site-name>绿夜API</a><nav><a href="/">接口首页</a></nav></header>
 <main class="doc-page">
   <section class="doc-hero">
     <div>
@@ -34,7 +34,7 @@ async function loadSiteName(){
   try{
     const res = await fetch("/portal/site");
     const body = await res.json();
-    const name = body?.data?.site_name || "BugPk-Api";
+    const name = body?.data?.site_name || "绿夜API";
     document.title = name + " - 注册标识";
     document.querySelectorAll("[data-site-name]").forEach(el => el.textContent = name);
   }catch(_){}

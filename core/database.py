@@ -363,9 +363,9 @@ API_CATALOG = [
     ]
 
 DEFAULT_SITE_SETTINGS = {
-    "site_name": "BugPk-Api",
-    "logo_text": "B",
-    "hero_title": "免费公益 API 接口平台",
+    "site_name": "绿夜API",
+    "logo_text": "绿",
+    "hero_title": "绿夜API · 免费公益接口平台",
     "hero_subtitle": "提供短视频去水印解析、开发者工具、内容聚合、图片服务等接口。",
 }
 

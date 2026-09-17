@@ -22,7 +22,7 @@ CONFIG_PATH = Path("config.json")
 
 
 class Settings(BaseModel):
-    app_name: str = "遇见 API 聚合管理平台"
+    app_name: str = "绿夜API"
     environment: str = "development"
     debug: bool = False
     host: str = "127.0.0.1"

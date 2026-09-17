@@ -90,8 +90,8 @@ function filterApi(type) { currentStatusFilter = type || "all"; applyFilters(); 
 function filterByCategory(categoryId) { currentCategoryId = categoryId || "0"; applyFilters(); }
 
 function applySiteSettings(site) {
-  const name = site?.site_name || "BugPk-Api";
-  const heroTitle = site?.hero_title || "免费公益 API 接口平台";
+  const name = site?.site_name || "绿夜API";
+  const heroTitle = site?.hero_title || "绿夜API · 免费公益接口平台";
   const heroSubtitle = site?.hero_subtitle || "提供短视频去水印解析、开发者工具、内容聚合、图片服务等接口，支持在线搜索、分类筛选和文档调试。";
   document.title = name;
   document.querySelectorAll("[data-site-name]").forEach(el => el.textContent = name);
