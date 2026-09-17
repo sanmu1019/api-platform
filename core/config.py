@@ -48,7 +48,6 @@ class Settings(BaseModel):
     admin_login_fail_limit: int = 5
     admin_login_fail_window_seconds: int = 300
     admin_public_path: str = "/manage-api"
-    show_admin_entry: bool = False
 
     model_config = ConfigDict(extra="ignore")
 

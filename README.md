@@ -102,7 +102,6 @@ Api-Key: test123
   "admin_token": "请替换成强随机字符串",
   "default_api_keys": "请替换成强随机 key:默认用户",
   "allow_self_register": false,
-  "show_admin_entry": false,
   "admin_public_path": "/manage-api",
   "rate_limit_per_minute": 120
 }

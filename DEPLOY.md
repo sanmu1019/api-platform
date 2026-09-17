@@ -26,7 +26,6 @@ cp config.json.example config.json
   "admin_token": "请替换成强随机字符串",
   "default_api_keys": "请替换成强随机 key:默认用户",
   "admin_public_path": "/manage-api",
-  "show_admin_entry": false,
   "allow_self_register": false
 }
 ```
