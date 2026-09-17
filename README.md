@@ -1,31 +1,55 @@
 # 绿夜API
 
-基于 `FastAPI + SQLite` 的轻量 API 门户，包含：
+基于 `FastAPI + SQLite` 的轻量 API 聚合门户，内置 30+ 公开接口、前端文档页、后台管理和动态自定义接口。
 
-- 公开接口集合
-- 简单的前端文档页
-- 后台接口管理
-- 动态自定义接口
-- SQLite 持久化
+## 功能特性
+
+- 30+ 内置公开接口（抖音解析、IP 查询、时间戳、哈希、Base64、UUID、随机密码/颜色/昵称、成语查询、唐诗、历史上的今天、占位图、二维码、必应每日图等）
+- 纯前端接口测试台（`/test`），浏览器内直接调参试调
+- 自动生成的接口文档页（`/doc/{name}.html`）
+- 后台管理：接口 CRUD、启用/停用、Api-Key 管理、调用统计、访问日志导出、数据库备份
+- 动态自定义接口：后台登记后自动挂载，支持 JSON/Text/HTML 响应模板
+- SQLite 持久化，零外部依赖
+- 限流、IP 白名单、弱口令校验、安全响应头、CSV 公式注入防护
 
 ## 目录结构
 
 ```text
-main.py                 FastAPI 入口
-admin/                  后台接口
-apis/                   内置业务接口
-apis/data/              静态数据文件
-core/                   配置、数据库、中间件、依赖
-frontend/               前端页面和文档页
-static/                 静态资源
-tests/                  测试
-deploy/                 部署示例
-config.json.example     配置模板
+main.py                  FastAPI 入口，门户路由与应用装配
+admin/                   后台管理路由（登录、接口/Key/统计/日志/备份）
+apis/
+├── main.py              业务路由注册
+├── data_loader.py       静态数据加载器
+├── versioned.py         /api/v1 版本化兼容路由
+├── data/                静态数据集（手机号段、成语、唐诗、历史上的今天等）
+├── demo/                测试接口
+├── divination/          易经占卜（含 iching.json 数据）
+├── domain/              域名查询
+├── douyin/              抖音无水印解析（a_bogus 签名）
+├── dynamic/             动态自定义接口
+├── freeapi/             免费 API 聚合
+├── ip/                  IP 查询
+├── phone/               手机号归属地
+├── spider/              新闻/视频/图片爬虫聚合
+├── time/                时间接口
+├── tools/               工具类（哈希、Base64、UUID、密码、颜色、昵称等）
+└── word/                随机短句 / 一言
+core/                    配置、数据库、中间件、鉴权依赖、异常处理、路由索引
+frontend/                前端页面（首页、文档、测试台、后台、注册）
+static/                  后台静态资源
+tests/                   pytest 测试套件
+scripts/                 冒烟测试、数据修复、清理脚本
+tools/                   数据集构建工具
+deploy/                  systemd service、Nginx 配置示例
+.github/workflows/       CI 配置
+config.json.example      配置模板
 ```
 
 ## 快速启动
 
-```bash
+### Windows
+
+```powershell
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
@@ -33,13 +57,24 @@ copy config.json.example config.json
 python main.py
 ```
 
+### Linux / macOS
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp config.json.example config.json
+python main.py
+```
+
 默认地址：
 
 ```text
-首页:    http://127.0.0.1:8000/
-注册页:  http://127.0.0.1:8000/register
-后台:    http://127.0.0.1:8000/manage-api
-Swagger: http://127.0.0.1:8000/docs
+首页:     http://127.0.0.1:8000/
+测试台:   http://127.0.0.1:8000/test
+注册页:   http://127.0.0.1:8000/register
+后台:     http://127.0.0.1:8000/manage-api
+Swagger:  http://127.0.0.1:8000/docs
 ```
 
 默认凭据（**仅本地开发使用**）：
@@ -49,42 +84,16 @@ Admin-Token: admin888
 Api-Key: test123
 ```
 
-> 这两个值是公开的默认值。服务一旦监听非回环地址（如 `0.0.0.0`），
-> 启动日志会打印安全告警；`environment` 为 `production` 时则直接拒绝启动。
+> 服务一旦监听非回环地址（如 `0.0.0.0`），启动日志会打印安全告警；
+> `environment` 为 `production` 时则直接拒绝启动。
 
 ## 配置
 
-项目统一使用 `config.json`。本地开发直接复制模板即可：
-
-```bash
-cp config.json.example config.json
-```
+项目统一使用 `config.json`，从 `config.json.example` 复制后修改即可。
 
 ### 生产环境
 
-仓库里另有一份已经配好强随机凭据的生产配置 `config.production.json`
-（已被 `.gitignore` / `.dockerignore` 排除，不会进版本库和镜像）：
-
-```bash
-# 上传到服务器后直接使用
-cp config.production.json config.json
-```
-
-它相对模板做了这些收紧：
-
-| 配置项 | 值 | 原因 |
-|--------|-----|------|
-| `environment` | `production` | 启用启动期强校验、Secure Cookie、HSTS |
-| `admin_token` | 强随机 32 字节 | 替换默认 `admin888` |
-| `default_api_keys` | 强随机 key | 替换默认 `test123` |
-| `allow_self_register` | `false` | 关闭公开自助注册 |
-| `show_admin_entry` | `false` | 首页不展示后台入口 |
-
-> ⚠️ **`environment=production` 必须配合 HTTPS**：该模式下后台 Cookie 会带
-> `Secure` 属性，用纯 HTTP 访问时浏览器不会保存它，表现为"登录成功但一直是未登录状态"。
-> 请先按 [DEPLOY.md](DEPLOY.md) 用 Nginx + certbot 配好 HTTPS。
-
-生产环境手工改配置时至少要改这些字段：
+生产环境请直接编辑 `config.json`，至少修改以下字段：
 
 ```json
 {
@@ -92,163 +101,129 @@ cp config.production.json config.json
   "host": "0.0.0.0",
   "admin_token": "请替换成强随机字符串",
   "default_api_keys": "请替换成强随机 key:默认用户",
-  "admin_public_path": "/manage-api",
-  "show_admin_entry": false,
   "allow_self_register": false,
+  "show_admin_entry": false,
+  "admin_public_path": "/manage-api",
   "rate_limit_per_minute": 120
 }
 ```
 
+关键配置项说明：
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `environment` | `development` | 设为 `production` 启用强校验、Secure Cookie、HSTS |
+| `admin_token` | `admin888` | 后台登录口令，生产必须替换 |
+| `default_api_keys` | `test123:测试用户` | 初始 Api-Key，生产必须替换 |
+| `require_api_key` | `false` | 设为 `true` 则所有接口必须传 Api-Key |
+| `allow_self_register` | `true` | 是否允许公开自助注册 Key |
+| `admin_ip_allowlist` | 空 | 逗号分隔的 IP，仅允许这些 IP 访问后台 |
+| `admin_public_path` | `/manage-api` | 后台路径，可改冷门路径减少扫描 |
+| `rate_limit_per_minute` | `120` | 单 IP 每分钟请求上限，0 为不限 |
+| `enable_douyin` | `true` | 是否启用抖音解析接口 |
+
+> ⚠️ **`environment=production` 必须配合 HTTPS**：该模式下后台 Cookie 会带
+> `Secure` 属性，用纯 HTTP 访问时浏览器不会保存它，表现为"登录成功但一直是未登录状态"。
+
 弱口令校验以"是否对外监听"为准：只要 `host` 不是 `127.0.0.1`/`localhost`，
 使用默认凭据就会告警；`environment=production` 时直接启动失败。
 
-## 主要接口
+### 环境变量覆盖
+
+`config.json` 里的任意字段都可以用 `API_PLATFORM_<字段名大写>` 覆盖，无需改文件：
+
+```bash
+# 让冒烟脚本走独立临时库
+API_PLATFORM_DATABASE_PATH=./data/smoke.sqlite3 python scripts/smoke_test.py
+
+# 临时换后台口令
+API_PLATFORM_ADMIN_TOKEN=xxx python main.py
+```
+
+## 主要路由
 
 ```text
 GET  /                      首页
+GET  /test                  接口测试台
 GET  /register              注册页
-POST /register/key          自助生成 key
-GET  /portal/apis           接口目录数据
-GET  /portal/apis/{name}    单个接口详情数据
-GET  /doc/{name}.html       单个接口文档页
+POST /register/key          自助生成 Key
+GET  /portal/apis           接口目录（含分类、调用统计）
+GET  /portal/apis/{name}    单个接口详情
+GET  /doc/{name}.html       接口文档页
 GET  /manage-api            后台页面
+POST /manage-api/login      后台登录
 GET  /health                健康检查
 ```
 
-## 数据组织规则
+内置接口均挂在 `/api/` 下，完整列表启动后访问 `/portal/apis` 或 `/docs` 查看。
 
-现在静态数据不再直接堆在 `route.py` 中：
+## 静态数据
 
-- 纯字符串列表：用 `txt`
-- 有结构字段的数据：用 `json`
-- 路由文件只保留接口逻辑
+数据集统一放在 `apis/data/`，路由文件只保留逻辑：
 
-当前已经迁移到 `apis/data/` 的包括：
+| 文件 | 大小 | 用途 |
+|------|------|------|
+| `phone_prefix.json` | ~7.3MB | 手机号段归属地 |
+| `idioms.json` | ~4.6MB | 成语词典 |
+| `history_today.json` | ~2.5MB | 历史上的今天 |
+| `poetry_tang.json` | ~1.7MB | 唐诗 |
+| `yiyan.txt` | ~636KB | 一言句子库 |
+| `words.txt` | ~225KB | 随机短句库 |
+| `spider.json` | ~3KB | 爬虫聚合配置 |
+| `phone_map.json` | ~0.5KB | 手机号段映射 |
+| `nickname_prefixes.txt` | — | 昵称前缀 |
+| `nickname_suffixes.txt` | — | 昵称后缀 |
 
-- `yiyan.txt`
-- `words.txt`
-- `nickname_prefixes.txt`
-- `nickname_suffixes.txt`
-- `phone_map.json`
-- `spider.json`
-
-## 文档页与在线调试
-
-接口详情页位于：
-
-```text
-/doc/{name}.html
-```
-
-当前文档页支持：
-
-- 请求示例展示
-- 常见参数说明
-- 在线调试
-- 路径参数替换
-
-例如：
-
-```text
-http://127.0.0.1:8000/doc/idiom_search.html
-```
+另有 `apis/divination/data/iching.json`（易经六十四卦数据）。
 
 ## 后台能力
 
-后台路径默认是：
+后台路径默认 `/manage-api`（可通过 `admin_public_path` 修改），支持：
 
-```text
-/manage-api
-```
-
-支持：
-
-- 接口 CRUD
-- 启用 / 停用接口
-- Api-Key 管理
-- 调用统计
-- 访问日志导出
-- 数据库备份
-- 动态接口模板
+- 接口 CRUD 与启用/停用
+- Api-Key 管理（创建、停用、删除、每日额度）
+- 调用统计（按接口、按 Key 分组）
+- 访问日志查询与 CSV 导出（含公式注入防护）
+- 抖音解析健康状态（连续失败次数监控）
+- 数据库备份下载
+- 路由巡检（标记数据库中已失效的幽灵接口）
 
 ## 测试
-
-运行测试：
 
 ```bash
 python -m pytest -q
 ```
 
-如果当前环境还没装 `pytest`，先执行：
+测试**不会**碰真实数据库：`tests/conftest.py` 在导入应用前把 `database_path`
+指向临时目录，会话结束后自动删除。
+
+冒烟测试：
 
 ```bash
-pip install -r requirements.txt
-```
-
-测试**不会**碰你的真实数据库：`tests/conftest.py` 会在导入应用之前，把
-`database_path` 指向一个临时目录，会话结束后自动删除。
-
-### 用环境变量覆盖配置
-
-`config.json` 里的任意字段都可以用 `API_PLATFORM_<字段名大写>` 覆盖，
-无需改文件（容器 / CI 里尤其方便）：
-
-```bash
-# 让冒烟脚本也走独立的临时库，不污染真实数据
-API_PLATFORM_DATABASE_PATH=./data/smoke.sqlite3 python scripts/smoke_test.py
-
-# 临时换个后台口令
-API_PLATFORM_ADMIN_TOKEN=xxx python main.py
+python scripts/smoke_test.py        # 基础端点
+python scripts/smoke_spider_apis.py # 爬虫相关接口
 ```
 
 ## 部署
 
-完整部署说明见 [DEPLOY.md](DEPLOY.md)。VPS 上推荐使用 Docker Compose 部署，再用 Nginx 做反向代理。
-如果部署到 Android Termux，请参阅 [TERMUX.md](TERMUX.md)；该方式直接运行 FastAPI，不需要 Docker。
+完整部署说明见 [DEPLOY.md](DEPLOY.md)。
 
-### VPS Docker Compose 部署
-
-以 Ubuntu / Debian 为例，先安装基础依赖：
-
-```bash
-sudo apt update
-sudo apt install -y git docker.io docker-compose-plugin nginx
-sudo systemctl enable --now docker nginx
-```
-
-拉取项目并准备配置：
+### Docker Compose（推荐）
 
 ```bash
 cd /opt
-sudo git clone <你的仓库地址> api-platform
-cd /opt/api-platform
+git clone https://github.com/sanmu1019/api-platform.git
+cd api-platform
 cp config.json.example config.json
 mkdir -p data
+# 编辑 config.json，填入生产配置（见上文）
+docker compose up -d --build
 ```
 
-编辑 `config.json`，生产环境至少修改：
-
-```json
-{
-  "environment": "production",
-  "host": "0.0.0.0",
-  "port": 8000,
-  "database_path": "./data/api_platform.sqlite3",
-  "admin_token": "请替换成强随机后台 token",
-  "default_api_keys": "请替换成强随机 api-key:默认用户",
-  "allow_self_register": false,
-  "admin_public_path": "/manage-api",
-  "show_admin_entry": false
-}
-```
-
-生产环境不要使用默认的 `admin888`、`test123`、`please-change-admin-token` 或 `please-change-api-key`，否则启动时会被安全校验拦截。
-
-启动服务：
+容器以非 root 用户（UID 10001）运行，挂载的 `data/` 目录需确保可写：
 
 ```bash
-docker compose up -d --build
-docker compose logs -f
+sudo chown -R 10001:10001 data
 ```
 
 健康检查：
@@ -259,60 +234,36 @@ curl http://127.0.0.1:8000/health
 
 ### Nginx 反向代理
 
-复制并修改示例配置：
-
 ```bash
 sudo cp deploy/nginx.conf.example /etc/nginx/sites-available/api-platform
-sudo nano /etc/nginx/sites-available/api-platform
+sudo nano /etc/nginx/sites-available/api-platform   # 修改 server_name
+sudo ln -s /etc/nginx/sites-available/api-platform /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-把 `server_name example.com;` 改成你的域名，然后启用配置：
-
-```bash
-sudo ln -s /etc/nginx/sites-available/api-platform /etc/nginx/sites-enabled/api-platform
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-配置 HTTPS：
+HTTPS（Let's Encrypt）：
 
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d api.example.com
+sudo certbot --nginx -d 你的域名
 ```
 
-### 运维命令
-
-升级：
+### 运维
 
 ```bash
+# 升级
 cd /opt/api-platform
 git pull
 docker compose up -d --build
-```
 
-查看日志：
-
-```bash
+# 日志
 docker compose logs -f
-```
 
-需要备份的关键数据：
-
-```text
+# 需备份的数据
 config.json
 data/
 ```
 
-常用地址：
-
-```text
-首页:    https://你的域名/
-后台:    https://你的域名/manage-api
-健康:    https://你的域名/health
-Swagger: https://你的域名/docs
-```
-
 ## License
 
-[MIT](LICENSE) © 2026 mylyve
+[MIT](LICENSE) © 2026 sanmu1019
