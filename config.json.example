@@ -1,5 +1,5 @@
 {
-  "app_name": "API 聚合管理平台",
+  "app_name": "绿夜API",
   "environment": "development",
   "debug": false,
   "host": "0.0.0.0",
