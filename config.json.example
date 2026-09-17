@@ -17,6 +17,5 @@
   "admin_ip_allowlist": "",
   "admin_login_fail_limit": 5,
   "admin_login_fail_window_seconds": 300,
-  "admin_public_path": "/manage-api",
-  "show_admin_entry": true
+  "admin_public_path": "/manage-api"
 }

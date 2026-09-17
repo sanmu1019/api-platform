@@ -26,10 +26,11 @@
   </section>
   <section class="panel">
     <h3>免费调用方式</h3>
-    <pre>curl http://127.0.0.1:8000/api/demo</pre>
+    <pre id="curlExample">curl http://127.0.0.1:8000/api/demo</pre>
   </section>
 </main>
 <script>
+const origin = location.origin;
 async function loadSiteName(){
   try{
     const res = await fetch("/portal/site");
@@ -47,11 +48,12 @@ async function registerKey(){
     const res = await fetch(`/register/key?name=${encodeURIComponent(name)}`, {method:"POST"});
     const data = await res.json();
     if(!res.ok) throw new Error(data.detail || data.msg || "生成失败");
-    result.textContent = `生成成功（可选使用）\n\n名称：${data.data.name}\n标识：${data.data.key}\n\n免费调用无需携带该标识：\ncurl http://127.0.0.1:8000/api/demo`;
+    result.textContent = `生成成功（可选使用）\n\n名称：${data.data.name}\n标识：${data.data.key}\n\n免费调用无需携带该标识：\ncurl ${origin}/api/demo`;
   } catch(e) {
     result.textContent = e.message;
   }
 }
+document.getElementById("curlExample").textContent = `curl ${origin}/api/demo`;
 loadSiteName();
 </script>
 </body>
