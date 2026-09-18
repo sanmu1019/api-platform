@@ -128,38 +128,6 @@ const PARAM_SPECS = {
       { name: "size", required: T.no, type: "number", desc: "二维码边长，80-800", example: "220" }
     ]
   },
-  news_categories: { params: [] },
-  news_list: {
-    exampleQuery: "type=0&page=1&size=10",
-    params: [
-      { name: "type", required: T.no, type: "number", desc: "分类编号，0-7", example: "0" },
-      { name: "page", required: T.no, type: "number", desc: "页码", example: "1" },
-      { name: "size", required: T.no, type: "number", desc: "每页数量", example: "10" }
-    ]
-  },
-  news_detail: {
-    exampleQuery: "postid=N20260521001-0-1",
-    params: [{ name: "postid", required: T.yes, type: "string", desc: "新闻 ID", example: "N20260521001-0-1" }]
-  },
-  video_list: {
-    exampleQuery: "type=%E5%85%A8%E9%83%A8&page=1&size=10",
-    params: [
-      { name: "type", required: T.no, type: "string", desc: "视频类型，默认全部", example: "全部" },
-      { name: "page", required: T.no, type: "number", desc: "页码", example: "1" },
-      { name: "size", required: T.no, type: "number", desc: "每页数量", example: "10" }
-    ]
-  },
-  video_detail: {
-    exampleQuery: "vid=V10001",
-    params: [{ name: "vid", required: T.yes, type: "string", desc: "视频 ID", example: "V10001" }]
-  },
-picture_cosplay: {
-    exampleQuery: "page=1&size=10",
-    params: [
-      { name: "page", required: T.no, type: "number", desc: "页码", example: "1" },
-      { name: "size", required: T.no, type: "number", desc: "每页数量，1-30", example: "10" }
-    ]
-  },
   history_today: {
     exampleQuery: `date=${todayMMDD()}`,
     params: [{ name: "date", required: T.no, type: "string", desc: "日期，格式 MM-DD，留空取今天", example: todayMMDD() }]
@@ -201,6 +169,112 @@ picture_cosplay: {
       { name: "keyword", required: T.no, type: "string", desc: "标题、作者或内容关键词", example: "李白" },
       { name: "count", required: T.no, type: "number", desc: "返回数量，1-10", example: "1" }
     ]
+  },
+  hot_platforms: {
+    displayPath: "/api/hot/platforms",
+    params: []
+  },
+  hot_list: {
+    displayPath: "/api/hot/weibo",
+    exampleQuery: "limit=20",
+    params: [
+      { name: "platform", required: T.yes, type: "path", desc: "平台：weibo/baidu/github/bilibili", example: "weibo", in: "path" },
+      { name: "limit", required: T.no, type: "number", desc: "返回条数，1-50", example: "20" }
+    ]
+  },
+  exchange_currencies: {
+    displayPath: "/api/exchange/currencies",
+    params: []
+  },
+  exchange_rate: {
+    displayPath: "/api/exchange/rate",
+    exampleQuery: "from=USD&to=CNY",
+    params: [
+      { name: "from", required: T.no, type: "string", desc: "源货币代码（3位大写）", example: "USD" },
+      { name: "to", required: T.no, type: "string", desc: "目标货币代码（3位大写）", example: "CNY" },
+      { name: "date", required: T.no, type: "string", desc: "历史日期 YYYY-MM-DD，不传取最新", example: "" }
+    ]
+  },
+  exchange_convert: {
+    displayPath: "/api/exchange/convert",
+    exampleQuery: "from=EUR&to=JPY&amount=100",
+    params: [
+      { name: "from", required: T.no, type: "string", desc: "源货币代码", example: "EUR" },
+      { name: "to", required: T.no, type: "string", desc: "目标货币代码", example: "JPY" },
+      { name: "amount", required: T.no, type: "number", desc: "金额", example: "100" }
+    ]
+  },
+  weather_geo: {
+    displayPath: "/api/weather/geo",
+    exampleQuery: "name=%E5%8C%97%E4%BA%AC",
+    params: [{ name: "name", required: T.yes, type: "string", desc: "城市名称", example: "北京" }]
+  },
+  weather_current: {
+    displayPath: "/api/weather/current",
+    exampleQuery: "latitude=39.9&longitude=116.4",
+    params: [
+      { name: "latitude", required: T.yes, type: "number", desc: "纬度（-90 到 90）", example: "39.9" },
+      { name: "longitude", required: T.yes, type: "number", desc: "经度（-180 到 180）", example: "116.4" }
+    ]
+  },
+  weather_forecast: {
+    displayPath: "/api/weather/forecast",
+    exampleQuery: "latitude=39.9&longitude=116.4&days=7",
+    params: [
+      { name: "latitude", required: T.yes, type: "number", desc: "纬度", example: "39.9" },
+      { name: "longitude", required: T.yes, type: "number", desc: "经度", example: "116.4" },
+      { name: "days", required: T.no, type: "number", desc: "预报天数，1-16", example: "7" }
+    ]
+  },
+  holiday_check: {
+    displayPath: "/api/holiday/check",
+    exampleQuery: "date=2026-10-01",
+    params: [{ name: "date", required: T.yes, type: "string", desc: "日期 YYYY-MM-DD", example: "2026-10-01" }]
+  },
+  holiday_range: {
+    displayPath: "/api/holiday/range",
+    exampleQuery: "start=2026-10-01&end=2026-10-07",
+    params: [
+      { name: "start", required: T.yes, type: "string", desc: "开始日期 YYYY-MM-DD", example: "2026-10-01" },
+      { name: "end", required: T.yes, type: "string", desc: "结束日期 YYYY-MM-DD", example: "2026-10-07" }
+    ]
+  },
+  lunar_day: {
+    displayPath: "/api/lunar/day",
+    exampleQuery: "date=2026-10-01",
+    params: [{ name: "date", required: T.yes, type: "string", desc: "公历日期 YYYY-MM-DD", example: "2026-10-01" }]
+  },
+  price_gold: {
+    displayPath: "/api/price/gold",
+    params: []
+  },
+  price_silver: {
+    displayPath: "/api/price/silver",
+    params: []
+  },
+  price_oil: {
+    displayPath: "/api/price/oil",
+    params: []
+  },
+  price_all: {
+    displayPath: "/api/price/all",
+    params: []
+  },
+  joke_random: {
+    displayPath: "/api/joke/random",
+    params: []
+  },
+  joke_list: {
+    displayPath: "/api/joke/list",
+    exampleQuery: "page=1&page_size=10",
+    params: [
+      { name: "page", required: T.no, type: "number", desc: "页码", example: "1" },
+      { name: "page_size", required: T.no, type: "number", desc: "每页数量，最大50", example: "10" }
+    ]
+  },
+  joke_detail: {
+    displayPath: "/api/joke/1",
+    params: [{ name: "id", required: T.yes, type: "path", desc: "段子 ID", example: "1", in: "path" }]
   },
 };
 
