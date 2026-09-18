@@ -98,21 +98,6 @@ def test_spider_endpoints() -> None:
     client = TestClient(app)
     headers = {"Api-Key": "test123"}
 
-    assert client.get("/api/news/categories", headers=headers).status_code == 200
-    news = client.get("/api/news/list?type=0&page=1&size=2", headers=headers)
-    assert news.status_code == 200
-    assert len(news.json()["data"]["items"]) == 2
-
-    postid = news.json()["data"]["items"][0]["postid"]
-    detail = client.get(f"/api/news/detail?postid={postid}", headers=headers)
-    assert detail.status_code == 200
-
-    videos = client.get("/api/video/list", headers=headers)
-    assert videos.status_code == 200
-    vid = videos.json()["data"]["items"][0]["vid"]
-    assert client.get(f"/api/video/detail?vid={vid}", headers=headers).status_code == 200
-
-    assert client.get("/api/picture/cosplay?size=2", headers=headers).status_code == 200
     assert client.get("/api/history/today?date=05-21", headers=headers).json()["data"]["events"]
     assert client.get("/api/idiom/search?keyword=精", headers=headers).status_code == 200
     assert client.get("/api/poetry/tang?keyword=李白", headers=headers).status_code == 200
@@ -126,7 +111,7 @@ def test_versioned_aliases_and_validation_error_shape() -> None:
     assert client.get("/api/v1/demo", headers=headers).status_code == 200
     assert client.get("/api/v1/tool/hash?text=abc", headers=headers).status_code == 200
     assert client.get("/api/v1/image/qrcode?text=hello", headers=headers).status_code == 200
-    assert client.get("/api/v1/news/list?type=0", headers=headers).status_code == 200
+    assert client.get("/api/v1/history/today", headers=headers).status_code == 200
     assert client.get("/api/version").json()["data"]["current"] == "v1"
 
     invalid = client.get("/api/tool/uuid?count=999", headers=headers)

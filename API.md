@@ -596,112 +596,74 @@ GET|POST /api/douyin/parse?url=https://v.douyin.com/xxx&timeout=6
 
 **错误：** 缺少 url 返回 `400`；详情接口失败或风控返回 `400`，错误信息含详情接口失败原因和代理状态。debug 模式返回完整诊断信息。
 
----
+## 热榜聚合
 
-## 爬虫聚合
+实时抓取多平台热榜，数据缓存 5 分钟。GitHub Trending 国内直连超时，需配置 `douyin_proxy` 代理。
 
-> 以下接口返回本地种子数据（`sample: true`），结构参考真实爬虫接口，非实时数据源。
-
-### 新闻分类
+### 平台列表
 
 ```
-GET /api/news/categories
+GET /api/hot/platforms
 ```
 
-返回新闻分类列表。
+返回支持的热榜平台。
 
 **响应示例：**
 ```json
-{"code": 200, "msg": "success", "data": [{"type": 0, "name": "头条"}, {"type": 1, "name": "军事"}, "..."]}
+{"code": 200, "msg": "success", "data": [{"key": "weibo", "name": "微博热搜"}, {"key": "baidu", "name": "百度热搜"}, "..."]}
 ```
 
 ---
 
-### 新闻列表
+### 平台热榜
 
 ```
-GET /api/news/list?type=0&page=1&size=10
+GET /api/hot/{platform}?limit=20
 ```
 
-按分类分页返回新闻列表。
+获取指定平台的热榜。
+
+**路径参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| platform | string | 是 | 平台标识：`weibo` / `baidu` / `github` / `bilibili` |
 
 **查询参数：**
 
 | 参数 | 类型 | 必填 | 默认 | 说明 |
 |------|------|------|------|------|
-| type | int | 否 | 0 | 分类下标，0-7 |
-| page | int | 否 | 1 | 页码，>=1 |
-| size | int | 否 | 10 | 每页条数，1-50 |
+| limit | int | 否 | 20 | 返回条数，1-50 |
 
-**响应示例：**
+**各平台返回字段：**
+
+| 平台 | 字段 |
+|------|------|
+| weibo | rank, title, hot(热度值), url, tag(热/新/沸) |
+| baidu | rank, title, hot(热度值), url, desc |
+| github | rank, title(owner/repo), url, desc |
+| bilibili | rank, title, up(UP主), play(播放量), url, pic(封面) |
+
+**响应示例（微博）：**
 ```json
 {
   "code": 200,
   "msg": "success",
   "data": {
-    "page": 1, "size": 5, "total": 4,
-    "items": [{"postid": "N20260521001-0-1", "title": "...", "source": "科技日报", "digest": "...", "ptime": "2026-09-18 09:01:00"}],
-    "sample": true
+    "platform": "weibo",
+    "name": "微博热搜",
+    "count": 3,
+    "items": [
+      {"rank": 1, "title": "示例热搜", "hot": 2410189, "url": "https://s.weibo.com/...", "tag": "热"}
+    ],
+    "cached": true
   }
 }
 ```
 
----
+**错误：** 不支持的 platform 返回 `400`；上游抓取失败且无缓存时返回 `502`。
 
-### 新闻详情
-
-```
-GET /api/news/detail?postid=N20260521001-0-1
-```
-
-按 postid 返回新闻详情。未知 postid 返回 `404`。
-
-**查询参数：**
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| postid | string | 是 | 新闻 ID，>=3 字符 |
-
----
-
-### 视频列表
-
-```
-GET /api/video/list?type=全部&page=1&size=10
-```
-
-**查询参数：**
-
-| 参数 | 类型 | 必填 | 默认 | 说明 |
-|------|------|------|------|------|
-| type | string | 否 | 全部 | 视频类型筛选 |
-| page | int | 否 | 1 | 页码 |
-| size | int | 否 | 10 | 每页条数，1-50 |
-
----
-
-### 视频详情
-
-```
-GET /api/video/detail?vid=V10001
-```
-
-未知 vid 返回 `404`。
-
----
-
-### 图片相册
-
-```
-GET /api/picture/cosplay?page=1&size=10
-```
-
-**查询参数：**
-
-| 参数 | 类型 | 必填 | 默认 | 说明 |
-|------|------|------|------|------|
-| page | int | 否 | 1 | 页码 |
-| size | int | 否 | 10 | 每页条数，1-30 |
+> **代理配置：** GitHub Trending 需在 `config.json` 中设置 `"douyin_proxy": "http://127.0.0.1:7890"`，与抖音解析共用代理。
 
 ---
 

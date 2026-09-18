@@ -7,6 +7,7 @@ from apis.douyin.route import router as douyin_router
 from apis.dynamic.route import router as dynamic_router
 from apis.dynamic.route import short_router as dynamic_short_router
 from apis.freeapi.route import router as freeapi_router
+from apis.hot.route import router as hot_router
 from apis.ip.route import router as ip_router
 from apis.phone.route import router as phone_router
 from apis.spider.route import router as spider_router
@@ -26,6 +27,7 @@ def register_api_routers(app: FastAPI) -> None:
     app.include_router(freeapi_router)
     app.include_router(tools_router)
     app.include_router(spider_router)
+    app.include_router(hot_router)
     app.include_router(divination_router)
     app.include_router(domain_router)
     if settings.enable_douyin:
