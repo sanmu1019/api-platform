@@ -667,6 +667,294 @@ GET /api/hot/{platform}?limit=20
 
 ---
 
+## 汇率服务
+
+基于 [Frankfurter](https://www.frankfurter.app/) 开源 API，数据来源欧洲央行（ECB），免 key，汇率缓存 1 小时。支持 30+ 主流货币。
+
+### 货币列表
+
+```
+GET /api/exchange/currencies
+```
+
+返回支持的货币代码和名称。
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": [{"code": "USD", "name": "United States Dollar"}, {"code": "CNY", "name": "Chinese Yuan"}], "count": 31}
+```
+
+---
+
+### 汇率查询
+
+```
+GET /api/exchange/rate?from=USD&to=CNY&date=2026-09-18
+```
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|------|------|------|------|------|
+| from | string | 否 | USD | 源货币代码（3位大写） |
+| to | string | 否 | CNY | 目标货币代码（3位大写） |
+| date | string | 否 | 最新 | 历史日期 YYYY-MM-DD |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"from": "USD", "to": "CNY", "rate": 7.18, "date": "2026-09-17", "amount": 1}}
+```
+
+---
+
+### 货币转换
+
+```
+GET /api/exchange/convert?from=EUR&to=JPY&amount=100
+```
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|------|------|------|------|------|
+| from | string | 否 | USD | 源货币代码 |
+| to | string | 否 | CNY | 目标货币代码 |
+| amount | float | 否 | 1.0 | 金额，须大于0 |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"from": "EUR", "to": "JPY", "amount": 100, "rate": 178.75, "result": 17875.0, "date": "2026-09-17"}}
+```
+
+---
+
+## 天气服务
+
+基于 [Open-Meteo](https://open-meteo.com/) 免 key API，CC BY 4.0 协议。天气数据缓存 10 分钟。
+
+### 城市搜索
+
+```
+GET /api/weather/geo?name=北京
+```
+
+返回匹配城市的经纬度等信息，用于后续天气查询。
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| name | string | 是 | 城市名称（中文/英文均可） |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": [{"name": "Beijing", "latitude": 39.9042, "longitude": 116.4074, "country": "China", "admin1": "Beijing", "timezone": "Asia/Shanghai"}], "count": 1}
+```
+
+---
+
+### 实时天气
+
+```
+GET /api/weather/current?latitude=39.9&longitude=116.4
+```
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| latitude | float | 是 | 纬度（-90 到 90） |
+| longitude | float | 是 | 经度（-180 到 180） |
+
+**响应字段：** temperature(°C), apparent_temperature(体感), humidity(%), weather(中文天气描述), wind_speed(km/h), wind_direction(°), pressure(hPa)
+
+---
+
+### 多日预报
+
+```
+GET /api/weather/forecast?latitude=39.9&longitude=116.4&days=7
+```
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|------|------|------|------|------|
+| latitude | float | 是 | | 纬度 |
+| longitude | float | 是 | | 经度 |
+| days | int | 否 | 7 | 预报天数，1-16 |
+
+**响应字段（每日）：** date, weather, temp_max, temp_min, precipitation(mm), wind_max, sunrise, sunset
+
+---
+
+## 节假日服务
+
+基于 [chinesecalendar](https://github.com/LKI/chinese-calendar) 库，数据来源国务院公告，支持 2004-2026 年。
+
+### 单日查询
+
+```
+GET /api/holiday/check?date=2026-10-01
+```
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| date | string | 是 | 日期 YYYY-MM-DD |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"date": "2026-10-01", "weekday": "Thursday", "is_workday": false, "is_holiday": true, "is_in_lieu": false, "holiday_name": "National Day"}}
+```
+
+---
+
+### 范围查询
+
+```
+GET /api/holiday/range?start=2026-10-01&end=2026-10-07
+```
+
+返回范围内的节假日和调休上班日，最多查询 366 天。
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| start | string | 是 | 开始日期 YYYY-MM-DD |
+| end | string | 是 | 结束日期 YYYY-MM-DD |
+
+---
+
+## 万年历服务
+
+基于 [lunar-python](https://github.com/6tail/lunar-python) 纯算法库，零依赖，支持公历转农历、干支、生肖、节气、宜忌、吉神方位、星宿等。
+
+### 当日黄历
+
+```
+GET /api/lunar/day?date=2026-10-01
+```
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| date | string | 是 | 公历日期 YYYY-MM-DD |
+
+**响应字段：**
+
+| 字段 | 说明 |
+|------|------|
+| solar | 公历日期、星期 |
+| lunar | 农历年/月/日、完整表述 |
+| ganzhi | 年月日时干支 |
+| shengxiao | 生肖 |
+| jieqi | 当前节气 |
+| yi | 宜（列表） |
+| ji | 忌（列表） |
+| pengzu | 彭祖百忌（干/支） |
+| chongsha | 冲煞 |
+| nayin | 纳音（年/月/日） |
+| lucky_directions | 吉神方位（喜神/福神/财神等） |
+| taishen | 胎神占方 |
+| xingxiu | 二十八星宿（名/禽/吉凶） |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"lunar": {"full": "二〇二六年八月廿一"}, "ganzhi": {"year": "丙午", "month": "丁酉", "day": "戊申"}, "shengxiao": "马", "yi": ["冠笄", "沐浴", "出行"], "ji": ["嫁娶", "开市", "祭祀"]}}
+```
+
+---
+
+## 行情服务
+
+基于腾讯财经公开行情接口，免 key，数据缓存 5 分钟。覆盖国际黄金、白银、原油期货。
+
+### 黄金行情
+
+```
+GET /api/price/gold
+```
+
+返回纽约黄金期货行情：price(最新价), change_pct(涨跌幅%), open, high, low, prev_close, time, date, unit(美元/盎司)
+
+---
+
+### 白银行情
+
+```
+GET /api/price/silver
+```
+
+返回纽约白银期货行情，单位：美元/盎司。
+
+---
+
+### 原油行情
+
+```
+GET /api/price/oil
+```
+
+返回 WTI 纽约原油期货行情，单位：美元/桶。
+
+---
+
+### 全部行情
+
+```
+GET /api/price/all
+```
+
+一次性返回黄金/白银/原油全部行情。
+
+---
+
+## 段子服务
+
+内置 40+ 条中文段子数据集，纯本地随机，不依赖外部服务。可自行扩充 `apis/joke/jokes.json`。
+
+### 随机段子
+
+```
+GET /api/joke/random
+```
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"id": 3, "title": "面试", "content": "面试官：你最大的缺点是什么？..."}, "total": 40}
+```
+
+---
+
+### 段子列表
+
+```
+GET /api/joke/list?page=1&page_size=10
+```
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|------|------|------|------|------|
+| page | int | 否 | 1 | 页码 |
+| page_size | int | 否 | 10 | 每页数量，最大 50 |
+
+---
+
+### 段子详情
+
+```
+GET /api/joke/{id}
+```
+
+按 ID 获取单条段子，不存在返回 404。
+
+---
+
 ## 占卜服务
 
 ### 梅花易数 · 时间起卦
