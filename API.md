@@ -551,6 +551,22 @@ GET|POST /api/douyin/parse?url=https://v.douyin.com/xxx&timeout=6
 
 > **⚠️ 国内网络需要代理**：抖音对国内服务器 IP 有风控，直连详情接口会返回 403。在 `config.json` 中配置 `douyin_proxy`（如 `"http://127.0.0.1:7890"`）即可走代理解析。解析失败时错误信息会提示是否已配置代理。
 
+**如何配置代理：**
+
+1. 打开项目根目录的 `config.json`（从 `config.json.example` 复制一份）
+2. 在 `enable_douyin` 下方添加一行：`"douyin_proxy": "http://127.0.0.1:7890"`
+3. 值填你的代理地址，支持 HTTP/HTTPS 代理（如 Clash 默认 `http://127.0.0.1:7890`、V2Ray 默认 `http://127.0.0.1:10809`）
+4. 保存后重启服务（`python main.py`）
+5. 调用接口时加 `debug=true`，响应的 `debug.proxy` 字段会显示当前使用的代理地址，确认是否生效
+
+配置示例：
+```json
+{
+  "enable_douyin": true,
+  "douyin_proxy": "http://127.0.0.1:7890"
+}
+```
+
 **查询参数 / POST Body（JSON）：**
 
 | 参数 | 类型 | 必填 | 默认 | 说明 |
@@ -569,9 +585,11 @@ GET|POST /api/douyin/parse?url=https://v.douyin.com/xxx&timeout=6
     "title": "视频标题",
     "author": {"nickname": "作者昵称", "avatar": "https://..."},
     "cover": "https://...",
-    "video_url": "https://无水印视频地址",`n    "duration": 74600,
+    "video_url": "https://无水印视频地址",
+    "duration": 74600,
     "music": {"title": "背景音乐", "url": "https://..."},
-    "images": []
+    "images": [],
+    "source": "detail_api"
   }
 }
 ```
