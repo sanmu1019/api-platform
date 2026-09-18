@@ -37,6 +37,7 @@ class Settings(BaseModel):
     cors_origins: str = ""
 
     enable_douyin: bool = True
+    douyin_proxy: str = ""
     require_api_key: bool = False
     rate_limit_per_minute: int = 120
     self_register_quota_per_day: int = 1000

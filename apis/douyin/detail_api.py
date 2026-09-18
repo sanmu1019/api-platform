@@ -25,6 +25,7 @@ from urllib.parse import quote
 
 import requests
 
+from core.config import settings
 from .a_bogus import generate_a_bogus
 
 logger = logging.getLogger(__name__)
@@ -145,6 +146,8 @@ def fetch_aweme_detail(
 
     owns_session = session is None
     session = session or requests.Session()
+    if settings.douyin_proxy:
+        session.proxies = {"http": settings.douyin_proxy, "https": settings.douyin_proxy}
     query = _build_detail_query(item_id)
     aweme: Optional[dict[str, Any]] = None
     failure = "抖音详情接口未发起请求"

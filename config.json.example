@@ -9,6 +9,7 @@
   "default_api_keys": "test123:测试用户",
   "cors_origins": "",
   "enable_douyin": true,
+  "douyin_proxy": "",
   "require_api_key": false,
   "rate_limit_per_minute": 120,
   "self_register_quota_per_day": 1000,

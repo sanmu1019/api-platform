@@ -120,6 +120,7 @@ Api-Key: test123
 | `admin_public_path` | `/manage-api` | 后台路径，可改冷门路径减少扫描 |
 | `rate_limit_per_minute` | `120` | 单 IP 每分钟请求上限，0 为不限 |
 | `enable_douyin` | `true` | 是否启用抖音解析接口 |
+| `douyin_proxy` | 空 | 抖音解析代理地址，国内服务器必填（如 `http://127.0.0.1:7890`） |
 
 > ⚠️ **`environment=production` 必须配合 HTTPS**：该模式下后台 Cookie 会带
 > `Secure` 属性，用纯 HTTP 访问时浏览器不会保存它，表现为"登录成功但一直是未登录状态"。
