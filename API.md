@@ -547,7 +547,9 @@ GET /api/bilibili/cover?bvid=BV1GJ411x7h7
 GET|POST /api/douyin/parse?url=https://v.douyin.com/xxx&timeout=6
 ```
 
-抖音去水印解析，支持图文、短视频和实况解析，支持分享短链接。可通过 `enable_douyin` 配置关闭。
+抖音去水印解析，支持图文、短视频，支持分享短链接。通过官方详情接口（`/aweme/v1/web/aweme/detail/` + a_bogus 签名 + ttwid）获取无水印地址。可通过 `enable_douyin` 配置关闭。
+
+> **⚠️ 国内网络需要代理**：抖音对国内服务器 IP 有风控，直连详情接口会返回 403。在 `config.json` 中配置 `douyin_proxy`（如 `"http://127.0.0.1:7890"`）即可走代理解析。解析失败时错误信息会提示是否已配置代理。
 
 **查询参数 / POST Body（JSON）：**
 
@@ -555,8 +557,8 @@ GET|POST /api/douyin/parse?url=https://v.douyin.com/xxx&timeout=6
 |------|------|------|------|------|
 | url / text | string | 是 | — | 抖音分享链接或包含链接的完整分享文本 |
 | timeout | float | 否 | 6.0 | 服务端请求超时，2-20 秒 |
-| debug | bool | 否 | false | 解析失败时返回页面诊断信息 |
-| probe | bool | 否 | false | 只探测短链跳转和页面摘要，不强制解析视频数据 |
+| debug | bool | 否 | false | 返回详细诊断信息（含代理状态、详情接口失败原因） |
+| probe | bool | 否 | false | 只探测链接和页面摘要，不强制解析 |
 
 **响应示例（成功）：**
 ```json
@@ -567,14 +569,14 @@ GET|POST /api/douyin/parse?url=https://v.douyin.com/xxx&timeout=6
     "title": "视频标题",
     "author": {"nickname": "作者昵称", "avatar": "https://..."},
     "cover": "https://...",
-    "video_url": "https://无水印视频地址",
+    "video_url": "https://无水印视频地址",`n    "duration": 74600,
     "music": {"title": "背景音乐", "url": "https://..."},
     "images": []
   }
 }
 ```
 
-**错误：** 缺少 url 返回 `400`；解析失败返回 `400`（debug/probe 模式附带诊断信息）。
+**错误：** 缺少 url 返回 `400`；详情接口失败或风控返回 `400`，错误信息含详情接口失败原因和代理状态。debug 模式返回完整诊断信息。
 
 ---
 
