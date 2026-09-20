@@ -160,19 +160,6 @@ PLATFORMS = {
 }
 
 
-@router.get("/platforms", name="hot_platforms")
-def hot_platforms() -> dict:
-    """返回支持的热榜平台列表。"""
-    return {
-        "code": 200,
-        "msg": "success",
-        "data": [
-            {"key": key, "name": name}
-            for key, name in [(k, v[0]) for k, v in PLATFORMS.items()]
-        ],
-    }
-
-
 @router.get("/{platform}", name="hot_list")
 def hot_list(
     platform: str,

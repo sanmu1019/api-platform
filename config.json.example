@@ -10,6 +10,7 @@
   "cors_origins": "",
   "enable_douyin": true,
   "douyin_proxy": "",
+  "wxsph_cookie": "",
   "require_api_key": false,
   "rate_limit_per_minute": 120,
   "self_register_quota_per_day": 1000,

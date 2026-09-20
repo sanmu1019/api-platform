@@ -47,7 +47,7 @@ def test_public_registration_and_core_endpoints() -> None:
     key = registered.json()["data"]["key"]
     assert key.startswith("ak_")
 
-    assert client.get("/api/demo", headers={"Api-Key": key}).status_code == 200
+    assert client.get("/api/time", headers={"Api-Key": key}).status_code == 200
     assert client.get("/api/time", headers={"Api-Key": key}).status_code == 200
     assert client.get("/health").status_code == 200
 
@@ -81,15 +81,9 @@ def test_tools_and_word_endpoints() -> None:
     client = TestClient(app)
     headers = {"Api-Key": "test123"}
 
-    assert client.get("/api/word/random", headers=headers).status_code == 200
-    assert client.get("/api/tool/timestamp", headers=headers).status_code == 200
     assert client.get("/api/tool/hash?text=abc&algorithm=sha256", headers=headers).status_code == 200
     assert client.get("/api/tool/base64?text=abc", headers=headers).json()["data"]["result"] == "YWJj"
     assert client.get("/api/tool/uuid?count=2", headers=headers).json()["data"]["count"] == 2
-    assert len(client.get("/api/tool/password?length=12", headers=headers).json()["data"]["password"]) == 12
-    assert client.get("/api/tool/color", headers=headers).json()["data"]["hex"].startswith("#")
-    assert client.get("/api/tool/nickname", headers=headers).json()["data"]["nickname"]
-    assert client.get("/api/image/placeholder?width=100&height=80&text=test", headers=headers).status_code == 200
     assert client.get("/api/image/qrcode?text=hello", headers=headers).status_code == 200
 
 
@@ -243,8 +237,8 @@ def test_api_key_state_and_quota_are_enforced() -> None:
     )
     assert created.status_code == 200
 
-    assert client.get("/api/demo", headers={"Api-Key": "limited"}).status_code == 200
-    assert client.get("/api/demo", headers={"Api-Key": "limited"}).status_code == 429
+    assert client.get("/api/time", headers={"Api-Key": "limited"}).status_code == 200
+    assert client.get("/api/time", headers={"Api-Key": "limited"}).status_code == 429
 
     client.delete(f"{ADMIN_PATH}/keys/disabled", headers=headers)
     created = client.post(
@@ -254,9 +248,9 @@ def test_api_key_state_and_quota_are_enforced() -> None:
     )
     assert created.status_code == 200
     assert client.patch(f"{ADMIN_PATH}/keys/disabled", headers=headers, params={"enabled": False}).status_code == 200
-    assert client.get("/api/demo", headers={"Api-Key": "disabled"}).status_code == 403
+    assert client.get("/api/time", headers={"Api-Key": "disabled"}).status_code == 403
 
-    assert client.get("/api/demo", headers={"Api-Key": "missing"}).status_code == 403
+    assert client.get("/api/time", headers={"Api-Key": "missing"}).status_code == 403
 
 
 def test_dynamic_template_variables() -> None:

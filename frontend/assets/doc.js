@@ -51,6 +51,11 @@ const PARAM_SPECS = {
     params: [],
     response: { code: 200, msg: "success", data: { word: "山高路远，行则将至。" } }
   },
+  time: {
+    displayPath: "/api/time",
+    exampleQuery: "",
+    params: [{ name: "value", required: T.no, type: "number", desc: "Unix 时间戳，不传返回当前时间", example: "" }]
+  },
   yiyan: {
     displayPath: "/api/yiyan",
     params: [],
@@ -74,6 +79,11 @@ const PARAM_SPECS = {
   bilibili_cover: {
     exampleQuery: "bvid=BV1xx411c7mD",
     params: [{ name: "bvid", required: T.yes, type: "string", desc: "B站视频 BV 号", example: "BV1xx411c7mD" }]
+  },
+  wxsph_parse: {
+    displayPath: "/api/wxsph/parse",
+    exampleQuery: "url=https://weixin.qq.com/sph/xxx",
+    params: [{ name: "url", required: T.yes, type: "string", desc: "视频号分享链接", example: "https://weixin.qq.com/sph/xxx" }]
   },
   bing_daily: {
     params: [],
@@ -102,23 +112,6 @@ const PARAM_SPECS = {
   tool_uuid: {
     exampleQuery: "count=2",
     params: [{ name: "count", required: T.no, type: "number", desc: "生成数量，1-50", example: "2" }]
-  },
-  tool_password: {
-    exampleQuery: "length=12&symbols=true",
-    params: [
-      { name: "length", required: T.no, type: "number", desc: "密码长度，6-64", example: "12" },
-      { name: "symbols", required: T.no, type: "boolean", desc: "是否包含符号", example: "true" }
-    ]
-  },
-  tool_color: { params: [] },
-  tool_nickname: { params: [] },
-  image_placeholder: {
-    exampleQuery: "width=600&height=400&text=API",
-    params: [
-      { name: "width", required: T.no, type: "number", desc: "图片宽度", example: "600" },
-      { name: "height", required: T.no, type: "number", desc: "图片高度", example: "400" },
-      { name: "text", required: T.no, type: "string", desc: "图片文字", example: "API" }
-    ]
   },
   image_qrcode: {
     exampleQuery: "text=hello&size=220",
@@ -170,21 +163,13 @@ const PARAM_SPECS = {
       { name: "count", required: T.no, type: "number", desc: "返回数量，1-10", example: "1" }
     ]
   },
-  hot_platforms: {
-    displayPath: "/api/hot/platforms",
-    params: []
-  },
   hot_list: {
-    displayPath: "/api/hot/weibo",
+    displayPath: "/api/hot/{platform}",
     exampleQuery: "limit=20",
     params: [
       { name: "platform", required: T.yes, type: "path", desc: "平台：weibo/baidu/github/bilibili", example: "weibo", in: "path" },
       { name: "limit", required: T.no, type: "number", desc: "返回条数，1-50", example: "20" }
     ]
-  },
-  exchange_currencies: {
-    displayPath: "/api/exchange/currencies",
-    params: []
   },
   exchange_rate: {
     displayPath: "/api/exchange/rate",
@@ -204,40 +189,15 @@ const PARAM_SPECS = {
       { name: "amount", required: T.no, type: "number", desc: "金额", example: "100" }
     ]
   },
-  weather_geo: {
-    displayPath: "/api/weather/geo",
-    exampleQuery: "name=%E5%8C%97%E4%BA%AC",
-    params: [{ name: "name", required: T.yes, type: "string", desc: "城市名称", example: "北京" }]
-  },
   weather_current: {
     displayPath: "/api/weather/current",
-    exampleQuery: "latitude=39.9&longitude=116.4",
-    params: [
-      { name: "latitude", required: T.yes, type: "number", desc: "纬度（-90 到 90）", example: "39.9" },
-      { name: "longitude", required: T.yes, type: "number", desc: "经度（-180 到 180）", example: "116.4" }
-    ]
-  },
-  weather_forecast: {
-    displayPath: "/api/weather/forecast",
-    exampleQuery: "latitude=39.9&longitude=116.4&days=7",
-    params: [
-      { name: "latitude", required: T.yes, type: "number", desc: "纬度", example: "39.9" },
-      { name: "longitude", required: T.yes, type: "number", desc: "经度", example: "116.4" },
-      { name: "days", required: T.no, type: "number", desc: "预报天数，1-16", example: "7" }
-    ]
+    exampleQuery: "city=%E5%8C%97%E4%BA%AC",
+    params: [{ name: "city", required: T.yes, type: "string", desc: "城市名，如 北京/上海/南阳", example: "北京" }]
   },
   holiday_check: {
     displayPath: "/api/holiday/check",
     exampleQuery: "date=2026-10-01",
     params: [{ name: "date", required: T.yes, type: "string", desc: "日期 YYYY-MM-DD", example: "2026-10-01" }]
-  },
-  holiday_range: {
-    displayPath: "/api/holiday/range",
-    exampleQuery: "start=2026-10-01&end=2026-10-07",
-    params: [
-      { name: "start", required: T.yes, type: "string", desc: "开始日期 YYYY-MM-DD", example: "2026-10-01" },
-      { name: "end", required: T.yes, type: "string", desc: "结束日期 YYYY-MM-DD", example: "2026-10-07" }
-    ]
   },
   lunar_day: {
     displayPath: "/api/lunar/day",
@@ -252,29 +212,66 @@ const PARAM_SPECS = {
     displayPath: "/api/price/silver",
     params: []
   },
-  price_oil: {
-    displayPath: "/api/price/oil",
-    params: []
-  },
-  price_all: {
-    displayPath: "/api/price/all",
-    params: []
-  },
   joke_random: {
     displayPath: "/api/joke/random",
     params: []
   },
-  joke_list: {
-    displayPath: "/api/joke/list",
-    exampleQuery: "page=1&page_size=10",
+  xiehouyu_random: {
+    displayPath: "/api/extra/xiehouyu/random",
+    params: []
+  },
+  renwen_random: {
+    displayPath: "/api/extra/renwen/random",
+    params: []
+  },
+  tuwei_random: {
+    displayPath: "/api/extra/tuwei/random",
+    params: []
+  },
+  dujitang_random: {
+    displayPath: "/api/extra/dujitang/random",
+    params: []
+  },
+  mingren_random: {
+    displayPath: "/api/extra/mingren/random",
+    params: []
+  },
+  text_to_pinyin: {
+    displayPath: "/api/extra/pinyin",
+    params: [{ name: "text", required: T.yes, type: "string", desc: "要转换的汉字", example: "绿夜API" }]
+  },
+  number_to_upper: {
+    displayPath: "/api/extra/number/upper",
+    params: [{ name: "number", required: T.yes, type: "string", desc: "金额数字", example: "1234.56" }]
+  },
+  zh_convert: {
+    displayPath: "/api/extra/convert/zh",
     params: [
-      { name: "page", required: T.no, type: "number", desc: "页码", example: "1" },
-      { name: "page_size", required: T.no, type: "number", desc: "每页数量，最大50", example: "10" }
+      { name: "text", required: T.yes, type: "string", desc: "要转换的文本", example: "後來的我們" },
+      { name: "mode", required: T.no, type: "string", desc: "to_jian 或 to_fan", example: "to_jian" }
     ]
   },
-  joke_detail: {
-    displayPath: "/api/joke/1",
-    params: [{ name: "id", required: T.yes, type: "path", desc: "段子 ID", example: "1", in: "path" }]
+  dream_search: {
+    displayPath: "/api/extra/dream",
+    params: [{ name: "keyword", required: T.yes, type: "string", desc: "梦境关键词", example: "水" }]
+  },
+  ping_check: {
+    displayPath: "/api/extra/ping",
+    params: [{ name: "host", required: T.yes, type: "string", desc: "域名或IP", example: "baidu.com" }]
+  },
+  qq_music_search: {
+    displayPath: "/api/music/qq/search",
+    params: [
+      { name: "keyword", required: T.yes, type: "string", desc: "歌曲名或歌手", example: "周杰伦 晴天" },
+      { name: "limit", required: T.no, type: "int", desc: "返回数量", example: "5" }
+    ]
+  },
+  kugou_music_search: {
+    displayPath: "/api/music/kugou/search",
+    params: [
+      { name: "keyword", required: T.yes, type: "string", desc: "歌曲名或歌手", example: "周杰伦 晴天" },
+      { name: "limit", required: T.no, type: "int", desc: "返回数量", example: "5" }
+    ]
   },
 };
 
