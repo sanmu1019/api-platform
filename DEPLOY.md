@@ -144,9 +144,9 @@ Swagger:  http://服务器:8000/docs
 |------|------|----------|------------|------|
 | 通用视频解析 | `/api/parse/video?url=xxx` | 国外平台需要 | 部分平台需要 | 自动识别平台，支持上千个网站（基于yt-dlp） |
 | 抖音解析 | `/api/douyin/parse?url=xxx` | 可选 | 不需要 | 抖音无水印解析 |
-| 快手解析 | `/api/parse/kuaishou?url=xxx` | 不需要 | 不需要 | 快手无水印解析 |
-| 皮皮虾解析 | `/api/parse/pipix?url=xxx` | 不需要 | 不需要 | 皮皮虾无水印解析 |
-| 小红书解析 | `/api/parse/xhs?url=xxx` | 不需要 | **需要** | 小红书无水印解析 |
+| 快手解析 | `/api/parse/video?url=xxx` | 不需要 | 不需要 | 快手无水印解析 |
+| 皮皮虾解析 | `/api/parse/video?url=xxx` | 不需要 | 不需要 | 皮皮虾无水印解析 |
+| 小红书解析 | `/api/parse/video?url=xxx` | 不需要 | **需要** | 小红书无水印解析 |
 | 微博解析 | `/api/parse/video?url=xxx` | 不需要 | 不需要 | 微博视频/图片解析 |
 | 西瓜视频解析 | `/api/parse/video?url=xxx` | 不需要 | 不需要 | 西瓜视频解析 |
 | AcFun解析 | `/api/parse/video?url=xxx` | 不需要 | 不需要 | AcFun视频解析 |

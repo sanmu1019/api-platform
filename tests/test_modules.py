@@ -316,3 +316,16 @@ def test_earthquake_network_error(client, monkeypatch):
         raise httpx.ConnectError("down")
     _patch_httpx(monkeypatch, handler)
     assert client.get("/api/tools2/earthquake").status_code == 502
+
+
+def test_portal_catalog_matches_routes() -> None:
+    """门户目录里的每个内置接口都要有真实路由，每个公开路由也都要出现在目录里。"""
+    from core.database import API_CATALOG
+    from core.routing import api_route_index
+    from main import app
+
+    paths, _ = api_route_index(app)
+    catalog_paths = {item["path"] for item in API_CATALOG} | {"/api/douyin/parse"}
+    public = {p for p in paths if p.startswith("/api/") and not p.startswith("/api/v1/") and "{slug}" not in p}
+    assert sorted(p for p in catalog_paths if p not in paths) == []
+    assert sorted(public - catalog_paths) == []

@@ -275,28 +275,72 @@ const PARAM_SPECS = {
     getTextToQuery: value => `url=`,
     params: [{ name: 'url', required: T.yes, type: 'string', desc: '短视频/视频分享链接，支持抖音、快手、小红书、皮皮虾、微博、西瓜、AcFun、TikTok、YouTube、Twitter等上千个平台', example: 'https://v.kuaishou.com/xxx' }]
   },
-  xhs_parse: {
-    displayPath: "/api/parse/xhs",
-    params: [{ name: "url", required: T.yes, type: "string", desc: "小红书分享链接", example: "https://www.xiaohongshu.com/explore/xxx" }]
-  },
-  kuaishou_parse: {
-    displayPath: "/api/parse/kuaishou",
-    params: [{ name: "url", required: T.yes, type: "string", desc: "快手分享链接", example: "https://v.kuaishou.com/xxx" }]
-  },
-  pipix_parse: {
-    displayPath: "/api/parse/pipix",
-    params: [{ name: "url", required: T.yes, type: "string", desc: "皮皮虾分享链接", example: "https://h5.pipix.com/item/xxx" }]
-  },
-  lanzou_parse: {
-    displayPath: "/api/parse/lanzou",
-    params: [{ name: "url", required: T.yes, type: "string", desc: "蓝奏云分享链接", example: "https://xxx.lanzou.com/xxx" }]
-  },
-  emoji_search: {
-    displayPath: "/api/parse/emoji",
+  bilibili_proxy: {
+    displayPath: "/api/bilibili/proxy",
     params: [
-      { name: "keyword", required: T.yes, type: "string", desc: "表情包关键词", example: "搞笑" },
-      { name: "limit", required: T.no, type: "int", desc: "返回数量", example: "20" }
+      { name: "bvid", required: T.yes, type: "string", desc: "B站 BV 号", example: "BV1GJ411x7h7" },
+      { name: "type", required: T.no, type: "string", desc: "mp4 或 dash，默认 mp4", example: "mp4" }
     ]
+  },
+  domain_whois: {
+    displayPath: "/api/domain/whois",
+    params: [
+      { name: "domain", required: T.yes, type: "string", desc: "域名或网址", example: "baidu.com" },
+      { name: "timeout", required: T.no, type: "number", desc: "上游超时秒数，默认 10", example: "10" }
+    ]
+  },
+  domain_icp: {
+    displayPath: "/api/domain/icp",
+    params: [
+      { name: "domain", required: T.yes, type: "string", desc: "域名", example: "baidu.com" },
+      { name: "timeout", required: T.no, type: "number", desc: "上游超时秒数，默认 10", example: "10" }
+    ]
+  },
+  domain_info: {
+    displayPath: "/api/domain/info",
+    params: [
+      { name: "domain", required: T.yes, type: "string", desc: "域名", example: "baidu.com" },
+      { name: "timeout", required: T.no, type: "number", desc: "上游超时秒数，默认 10", example: "10" }
+    ]
+  },
+  divination_plum: {
+    displayPath: "/api/divination/plum",
+    params: [
+      { name: "question", required: T.no, type: "string", desc: "所问之事", example: "事业" },
+      { name: "year", required: T.no, type: "int", desc: "年，不传用当前时间", example: "2026" },
+      { name: "month", required: T.no, type: "int", desc: "月", example: "9" },
+      { name: "day", required: T.no, type: "int", desc: "日", example: "18" },
+      { name: "hour", required: T.no, type: "int", desc: "时（0-23）", example: "8" }
+    ]
+  },
+  divination_number: {
+    displayPath: "/api/divination/number",
+    params: [
+      { name: "number", required: T.yes, type: "int", desc: "三位数字", example: "258" },
+      { name: "question", required: T.no, type: "string", desc: "所问之事", example: "事业" },
+      { name: "month", required: T.no, type: "int", desc: "月，不传用当前月", example: "9" },
+      { name: "hour", required: T.no, type: "int", desc: "时，不传用当前小时", example: "8" }
+    ]
+  },
+  answer_book: {
+    displayPath: "/api/tools2/answer",
+    params: [{ name: "question", required: T.yes, type: "string", desc: "想问的问题", example: "明天会下雨吗" }]
+  },
+  food_recommend: {
+    displayPath: "/api/tools2/food",
+    params: []
+  },
+  luck_score: {
+    displayPath: "/api/tools2/luck",
+    params: [{ name: "name", required: T.yes, type: "string", desc: "名字", example: "张三" }]
+  },
+  carplate_query: {
+    displayPath: "/api/tools2/carplate",
+    params: [{ name: "code", required: T.yes, type: "string", desc: "车牌号或前缀，仅识别省份", example: "京A" }]
+  },
+  earthquake_list: {
+    displayPath: "/api/tools2/earthquake",
+    params: [{ name: "limit", required: T.no, type: "int", desc: "返回数量，1-50", example: "10" }]
   },
 };
 
