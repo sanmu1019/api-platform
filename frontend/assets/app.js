@@ -124,10 +124,10 @@ function toggleSidebar() {
 async function loadFooterPhrase() {
   try {
     const res = await fetch("/api/yiyan");
-    return await res.json();
-  } catch (_) {
-    return null;
-  }
+    const data = await res.json();
+    const el = document.getElementById("footerPhrase");
+    if (el && data?.data?.text) el.textContent = data.data.text;
+  } catch (_) {}
 }
 
 if (localStorage.getItem("darkMode") === "true") document.body.classList.add("theme-dark");
@@ -139,3 +139,5 @@ $("apiSearch")?.addEventListener("input", () => {
 loadHomeApiBundle().catch(err => {
   $("loading-spinner").textContent = `加载失败：${err.message}`;
 });
+loadFooterPhrase();
+setInterval(loadFooterPhrase, 60000);

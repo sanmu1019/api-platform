@@ -38,17 +38,22 @@ class Settings(BaseModel):
 
     enable_douyin: bool = True
     douyin_proxy: str = ""
+    wxsph_cookie: str = ""
+    xiaohongshu_cookie: str = ""
     require_api_key: bool = False
     rate_limit_per_minute: int = 120
     self_register_quota_per_day: int = 1000
 
     # 公网安全配置。
     public_security_enabled: bool = True
-    allow_self_register: bool = True
+    allow_self_register: bool = False
     admin_ip_allowlist: str = ""
     admin_login_fail_limit: int = 5
     admin_login_fail_window_seconds: int = 300
     admin_public_path: str = "/manage-api"
+    # 可信反向代理 IP/CIDR（逗号分隔）。只有直连 peer 在此名单内，
+    # 才采信 X-Forwarded-For / X-Real-IP；默认只信任本机回环。
+    trusted_proxies: str = "127.0.0.1,::1"
 
     model_config = ConfigDict(extra="ignore")
 
@@ -102,11 +107,16 @@ class Settings(BaseModel):
         避免打断本地开发。
         """
         problems = self._weak_credential_problems()
+        # 生产环境禁止自助注册
+        if self.is_production and self.allow_self_register:
+            problems.append("allow_self_register 在生产环境必须设为 false")
+        if self.is_production and self.debug:
+            problems.append("生产环境必须关闭 debug")
         if not problems:
             return
         if self.is_production:
             raise RuntimeError(
-                "生产环境禁止使用默认凭据，请在 config.json 中设置强随机值："
+                "生产环境安全配置错误，请在 config.json 中修复："
                 + "；".join(problems)
             )
         if self.listens_publicly:

@@ -27,7 +27,7 @@ def _register_aliases(source: APIRouter) -> None:
             alias_path,
             route.endpoint,
             methods=list(route.methods or ["GET"]),
-            name=f"v1_{route.name}",
+            name=route.name,  # 保留原始路由名，这样停用检查才能命中
             dependencies=[Depends(verify_api_key)],
             response_model=None,
         )
@@ -37,7 +37,7 @@ for item in [demo_router, ip_router, time_router, phone_router, word_router, fre
     _register_aliases(item)
 
 
-@v1_router.get("/api/version", include_in_schema=False)
+@v1_router.get("/api/version", include_in_schema=False, dependencies=[Depends(verify_api_key)])
 def api_version() -> dict:
     return {
         "code": 200,

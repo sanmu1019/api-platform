@@ -43,13 +43,31 @@ def mask_api_key(key: str | None) -> str:
 
 
 def _is_trusted_proxy_host(host: str) -> bool:
+    """只有直连 peer 来自配置的可信代理（默认仅本机回环）才采信转发头。
+
+    不再无条件信任整个私网段：Docker 直接暴露端口时，同网段/伪造的
+    X-Forwarded-For 不应被采纳。testclient 是测试环境回环，予以信任。
+    """
     if host in {"localhost", "testclient"}:
         return True
     try:
-        parsed = ip_address(host)
+        parsed = ip_address(host.split("%")[0])
     except ValueError:
         return False
-    return parsed.is_loopback or parsed.is_private
+    for item in settings.trusted_proxies.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        try:
+            if "/" in item:
+                from ipaddress import ip_network
+                if parsed in ip_network(item, strict=False):
+                    return True
+            elif parsed == ip_address(item):
+                return True
+        except ValueError:
+            continue
+    return False
 
 
 def client_ip(request: Request) -> str:
@@ -57,7 +75,10 @@ def client_ip(request: Request) -> str:
     if _is_trusted_proxy_host(peer):
         forwarded = request.headers.get("x-forwarded-for", "")
         if forwarded:
-            return forwarded.split(",")[0].strip()
+            # 取最后一个XFF值，第一个是客户端伪造的，越往后越可信
+            parts = [p.strip() for p in forwarded.split(",") if p.strip()]
+            if parts:
+                return parts[-1]
         real_ip = request.headers.get("x-real-ip", "")
         if real_ip:
             return real_ip.strip()
@@ -178,9 +199,26 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if self.limit <= 0 or not self._is_limited_path(request.url.path):
             return await call_next(request)
 
-        key = f"{client_ip(request)}:{request.headers.get('Api-Key') or request.headers.get('X-API-Key') or ''}"
+        ip = client_ip(request)
+        api_key = request.headers.get("Api-Key") or request.headers.get("X-API-Key") or ""
         now = time.time()
         self._sweep(now)
+
+        # 先按IP做全局限流，防止通过随机Api-Key绕过
+        ip_key = f"ip:{ip}"
+        q = self.bucket[ip_key]
+        while q and now - q[0] > self.window_seconds:
+            q.popleft()
+        if len(q) >= self.limit:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": f"请求过于频繁，请稍后再试（限制：{self.limit}/分钟）"},
+                headers={"Retry-After": "60"},
+            )
+        q.append(now)
+
+        # 再按IP+Key做限流
+        key = f"{ip}:{api_key}"
         q = self.bucket[key]
         while q and now - q[0] > self.window_seconds:
             q.popleft()

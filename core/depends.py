@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
+import time
 from datetime import date
 from hmac import compare_digest
 from typing import Annotated
@@ -15,8 +18,24 @@ def _extract_api_key(api_key: str | None, x_api_key: str | None) -> str | None:
     return api_key or x_api_key
 
 
-def _extract_admin_token(header_token: str | None, cookie_token: str | None) -> str | None:
-    return header_token or cookie_token
+ADMIN_SESSION_TTL = 60 * 60 * 8
+
+
+def _sign_admin_session(expires_at: int) -> str:
+    return hmac.new(settings.admin_token.encode(), f"admin:{expires_at}".encode(), hashlib.sha256).hexdigest()
+
+
+def make_admin_session() -> str:
+    """后台登录 Cookie：`过期时间.签名`，不含 admin_token 原文；更换 admin_token 后旧会话自动失效。"""
+    expires_at = int(time.time()) + ADMIN_SESSION_TTL
+    return f"{expires_at}.{_sign_admin_session(expires_at)}"
+
+
+def _valid_admin_session(value: str) -> bool:
+    expires_at, _, sig = value.partition(".")
+    if not expires_at.isdigit() or int(expires_at) < time.time():
+        return False
+    return compare_digest(sig, _sign_admin_session(int(expires_at)))
 
 
 def verify_api_key_value(request: Request, key: str | None = None, api_name: str | None = None) -> str:
@@ -107,7 +126,11 @@ def verify_admin_token(
     admin_token: Annotated[str | None, Header(alias="Admin-Token", convert_underscores=False)] = None,
     admin_cookie: Annotated[str | None, Cookie(alias="admin_token")] = None,
 ) -> str:
-    token = _extract_admin_token(admin_token, admin_cookie) or ""
+    if not admin_token and admin_cookie:
+        if _valid_admin_session(admin_cookie):
+            return "admin"
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录已过期，请重新登录")
+    token = admin_token or ""
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="缺少 Admin-Token")
     if not compare_digest(token, settings.admin_token):

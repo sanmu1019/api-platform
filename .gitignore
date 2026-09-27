@@ -43,7 +43,9 @@ AUDIT.md
 GITHUB_DEPLOY.md
 API_TEST_REPORT.md
 PROGRESS.md
-CURL_TESTS.md
+PROJECT_AUDIT.md
+PROJECT_REVIEW.md
+SECURITY_FIX_REPORT.md
 
 # 历史语料内容过滤词表。词表本身就是敏感词清单，不进公开仓库。
 # tools/build_datasets.py 重建语料时会读取它（缺失则打印告警并跳过过滤）。

@@ -1,4 +1,9 @@
-# 部署指南
+# 绿夜API 部署指南
+
+## 项目简介
+绿夜API是一个FastAPI开发的API聚合平台，提供短视频无水印解析、开发者工具、内容聚合等接口。
+
+---
 
 ## 1. 准备配置
 
@@ -128,3 +133,86 @@ sudo systemctl reload nginx
 健康检查: http://服务器:8000/health
 Swagger:  http://服务器:8000/docs
 ```
+
+---
+
+## 6. 接口说明
+
+### 短视频解析类
+
+| 接口 | 路径 | 需要代理 | 需要Cookie | 说明 |
+|------|------|----------|------------|------|
+| 通用视频解析 | `/api/parse/video?url=xxx` | 国外平台需要 | 部分平台需要 | 自动识别平台，支持上千个网站（基于yt-dlp） |
+| 抖音解析 | `/api/douyin/parse?url=xxx` | 可选 | 不需要 | 抖音无水印解析 |
+| 快手解析 | `/api/parse/kuaishou?url=xxx` | 不需要 | 不需要 | 快手无水印解析 |
+| 皮皮虾解析 | `/api/parse/pipix?url=xxx` | 不需要 | 不需要 | 皮皮虾无水印解析 |
+| 小红书解析 | `/api/parse/xhs?url=xxx` | 不需要 | **需要** | 小红书无水印解析 |
+| 微博解析 | `/api/parse/video?url=xxx` | 不需要 | 不需要 | 微博视频/图片解析 |
+| 西瓜视频解析 | `/api/parse/video?url=xxx` | 不需要 | 不需要 | 西瓜视频解析 |
+| AcFun解析 | `/api/parse/video?url=xxx` | 不需要 | 不需要 | AcFun视频解析 |
+| 视频号解析 | `/api/wxsph/parse?url=xxx` | 不需要 | **需要** | 微信视频号解析 |
+| B站封面 | `/api/bilibili/cover?bvid=xxx` | 不需要 | 不需要 | B站视频封面 |
+| TikTok解析 | `/api/parse/video?url=xxx` | **需要** | 不需要 | TikTok无水印解析 |
+| YouTube解析 | `/api/parse/video?url=xxx` | **需要** | 不需要 | YouTube视频解析 |
+| Twitter/X解析 | `/api/parse/video?url=xxx` | **需要** | 不需要 | Twitter视频解析 |
+
+### 其他工具类
+- 时间转换、哈希计算、Base64、UUID生成
+- 二维码生成、拼音转换、数字大写
+- 汇率查询、天气查询、节假日查询
+- 万年历/老黄历、金价油价查询
+- 段子/笑话/歇后语/土味情话/名人名言
+- 热榜（微博/百度/GitHub/B站）
+- 音乐搜索（QQ音乐/酷狗）
+- 表情包搜索
+- 手机号归属地、网站Whois
+
+---
+
+## 7. 代理与Cookie配置
+
+### 代理配置
+在 `config.json` 中添加：
+```json
+{
+  "douyin_proxy": "http://127.0.0.1:7890"
+}
+```
+- 国内平台（抖音/快手/皮皮虾/小红书/微博等）**不需要代理**，直连即可
+- 国外平台（TikTok/YouTube/Twitter等）**需要配置代理**
+- 代理格式：`http://IP:端口`
+
+### Cookie配置
+在 `config.json` 中添加：
+```json
+{
+  "xiaohongshu_cookie": "你的小红书cookie",
+  "wxsph_cookie": "你的视频号cookie"
+}
+```
+- **小红书解析**：登录小红书网页版，从浏览器开发者工具的Network里复制Cookie
+- **视频号解析**：从微信开发者工具或浏览器里复制视频号的Cookie
+- Cookie会过期，过期了重新获取即可
+
+---
+
+## 8. 核心依赖
+| 依赖 | 用途 |
+|------|------|
+| fastapi | Web框架 |
+| uvicorn | ASGI服务器 |
+| httpx | 异步HTTP请求 |
+| fake-useragent | 随机UA |
+| parsel | HTML解析 |
+| yt-dlp | 通用视频解析（支持上千个平台） |
+| chinesecalendar | 中国节假日 |
+| lunar-python | 农历/老黄历 |
+| pypinyin | 拼音转换 |
+
+---
+
+## 9. 安全建议
+- 生产环境必须修改默认的 `admin_token` 和 `default_api_keys`
+- 生产环境把 `environment` 设为 `production`
+- 修改默认的后台路径 `admin_public_path`
+- 配置 `cors_origins` 限制跨域来源

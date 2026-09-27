@@ -1,4 +1,4 @@
-const root = document.getElementById("docRoot");
+﻿const root = document.getElementById("docRoot");
 const rawName = location.pathname.split("/").pop().replace(/\.html$/, "");
 const name = rawName === "douyin" || rawName === "doc-douyin" ? "douyin_parse" : rawName;
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -51,6 +51,11 @@ const PARAM_SPECS = {
     params: [],
     response: { code: 200, msg: "success", data: { word: "山高路远，行则将至。" } }
   },
+  time: {
+    displayPath: "/api/time",
+    exampleQuery: "",
+    params: [{ name: "value", required: T.no, type: "number", desc: "Unix 时间戳，不传返回当前时间", example: "" }]
+  },
   yiyan: {
     displayPath: "/api/yiyan",
     params: [],
@@ -75,13 +80,14 @@ const PARAM_SPECS = {
     exampleQuery: "bvid=BV1xx411c7mD",
     params: [{ name: "bvid", required: T.yes, type: "string", desc: "B站视频 BV 号", example: "BV1xx411c7mD" }]
   },
+  wxsph_parse: {
+    displayPath: "/api/wxsph/parse",
+    exampleQuery: "url=https://weixin.qq.com/sph/xxx",
+    params: [{ name: "url", required: T.yes, type: "string", desc: "视频号分享链接", example: "https://weixin.qq.com/sph/xxx" }]
+  },
   bing_daily: {
     params: [],
     response: { code: 200, msg: "success", data: { title: "Bing Daily Image", url: "https://www.bing.com/...", date: "20260702", source: "bing" } }
-  },
-  tool_timestamp: {
-    exampleQuery: "value=1719900000",
-    params: [{ name: "value", required: T.no, type: "number", desc: "Unix 时间戳，默认当前时间", example: "1719900000" }]
   },
   tool_hash: {
     exampleQuery: "text=abc&algorithm=sha256",
@@ -103,61 +109,12 @@ const PARAM_SPECS = {
     exampleQuery: "count=2",
     params: [{ name: "count", required: T.no, type: "number", desc: "生成数量，1-50", example: "2" }]
   },
-  tool_password: {
-    exampleQuery: "length=12&symbols=true",
-    params: [
-      { name: "length", required: T.no, type: "number", desc: "密码长度，6-64", example: "12" },
-      { name: "symbols", required: T.no, type: "boolean", desc: "是否包含符号", example: "true" }
-    ]
-  },
-  tool_color: { params: [] },
-  tool_nickname: { params: [] },
-  image_placeholder: {
-    exampleQuery: "width=600&height=400&text=API",
-    params: [
-      { name: "width", required: T.no, type: "number", desc: "图片宽度", example: "600" },
-      { name: "height", required: T.no, type: "number", desc: "图片高度", example: "400" },
-      { name: "text", required: T.no, type: "string", desc: "图片文字", example: "API" }
-    ]
-  },
   image_qrcode: {
     exampleQuery: "text=hello&size=220",
     getTextToQuery: value => `text=${encodeURIComponent(value)}`,
     params: [
       { name: "text", required: T.yes, type: "string", desc: "二维码文本内容", example: "hello" },
       { name: "size", required: T.no, type: "number", desc: "二维码边长，80-800", example: "220" }
-    ]
-  },
-  news_categories: { params: [] },
-  news_list: {
-    exampleQuery: "type=0&page=1&size=10",
-    params: [
-      { name: "type", required: T.no, type: "number", desc: "分类编号，0-7", example: "0" },
-      { name: "page", required: T.no, type: "number", desc: "页码", example: "1" },
-      { name: "size", required: T.no, type: "number", desc: "每页数量", example: "10" }
-    ]
-  },
-  news_detail: {
-    exampleQuery: "postid=N20260521001-0-1",
-    params: [{ name: "postid", required: T.yes, type: "string", desc: "新闻 ID", example: "N20260521001-0-1" }]
-  },
-  video_list: {
-    exampleQuery: "type=%E5%85%A8%E9%83%A8&page=1&size=10",
-    params: [
-      { name: "type", required: T.no, type: "string", desc: "视频类型，默认全部", example: "全部" },
-      { name: "page", required: T.no, type: "number", desc: "页码", example: "1" },
-      { name: "size", required: T.no, type: "number", desc: "每页数量", example: "10" }
-    ]
-  },
-  video_detail: {
-    exampleQuery: "vid=V10001",
-    params: [{ name: "vid", required: T.yes, type: "string", desc: "视频 ID", example: "V10001" }]
-  },
-picture_cosplay: {
-    exampleQuery: "page=1&size=10",
-    params: [
-      { name: "page", required: T.no, type: "number", desc: "页码", example: "1" },
-      { name: "size", required: T.no, type: "number", desc: "每页数量，1-30", example: "10" }
     ]
   },
   history_today: {
@@ -200,6 +157,145 @@ picture_cosplay: {
     params: [
       { name: "keyword", required: T.no, type: "string", desc: "标题、作者或内容关键词", example: "李白" },
       { name: "count", required: T.no, type: "number", desc: "返回数量，1-10", example: "1" }
+    ]
+  },
+  hot_list: {
+    displayPath: "/api/hot/{platform}",
+    exampleQuery: "limit=20",
+    params: [
+      { name: "platform", required: T.yes, type: "path", desc: "平台：weibo/baidu/github/bilibili", example: "weibo", in: "path" },
+      { name: "limit", required: T.no, type: "number", desc: "返回条数，1-50", example: "20" }
+    ]
+  },
+  exchange_rate: {
+    displayPath: "/api/exchange/rate",
+    exampleQuery: "from=USD&to=CNY",
+    params: [
+      { name: "from", required: T.no, type: "string", desc: "源货币代码（3位大写）", example: "USD" },
+      { name: "to", required: T.no, type: "string", desc: "目标货币代码（3位大写）", example: "CNY" },
+      { name: "date", required: T.no, type: "string", desc: "历史日期 YYYY-MM-DD，不传取最新", example: "" }
+    ]
+  },
+  exchange_convert: {
+    displayPath: "/api/exchange/convert",
+    exampleQuery: "from=EUR&to=JPY&amount=100",
+    params: [
+      { name: "from", required: T.no, type: "string", desc: "源货币代码", example: "EUR" },
+      { name: "to", required: T.no, type: "string", desc: "目标货币代码", example: "JPY" },
+      { name: "amount", required: T.no, type: "number", desc: "金额", example: "100" }
+    ]
+  },
+  weather_current: {
+    displayPath: "/api/weather/current",
+    exampleQuery: "city=%E5%8C%97%E4%BA%AC",
+    params: [{ name: "city", required: T.yes, type: "string", desc: "城市名，如 北京/上海/南阳", example: "北京" }]
+  },
+  holiday_check: {
+    displayPath: "/api/holiday/check",
+    exampleQuery: "date=2026-10-01",
+    params: [{ name: "date", required: T.yes, type: "string", desc: "日期 YYYY-MM-DD", example: "2026-10-01" }]
+  },
+  lunar_day: {
+    displayPath: "/api/lunar/day",
+    exampleQuery: "date=2026-10-01",
+    params: [{ name: "date", required: T.yes, type: "string", desc: "公历日期 YYYY-MM-DD", example: "2026-10-01" }]
+  },
+  price_gold: {
+    displayPath: "/api/price/gold",
+    params: []
+  },
+  price_silver: {
+    displayPath: "/api/price/silver",
+    params: []
+  },
+  joke_random: {
+    displayPath: "/api/joke/random",
+    params: []
+  },
+  xiehouyu_random: {
+    displayPath: "/api/extra/xiehouyu/random",
+    params: []
+  },
+  renwen_random: {
+    displayPath: "/api/extra/renwen/random",
+    params: []
+  },
+  tuwei_random: {
+    displayPath: "/api/extra/tuwei/random",
+    params: []
+  },
+  dujitang_random: {
+    displayPath: "/api/extra/dujitang/random",
+    params: []
+  },
+  mingren_random: {
+    displayPath: "/api/extra/mingren/random",
+    params: []
+  },
+  text_to_pinyin: {
+    displayPath: "/api/extra/pinyin",
+    params: [{ name: "text", required: T.yes, type: "string", desc: "要转换的汉字", example: "绿夜API" }]
+  },
+  number_to_upper: {
+    displayPath: "/api/extra/number/upper",
+    params: [{ name: "number", required: T.yes, type: "string", desc: "金额数字", example: "1234.56" }]
+  },
+  zh_convert: {
+    displayPath: "/api/extra/convert/zh",
+    params: [
+      { name: "text", required: T.yes, type: "string", desc: "要转换的文本", example: "後來的我們" },
+      { name: "mode", required: T.no, type: "string", desc: "to_jian 或 to_fan", example: "to_jian" }
+    ]
+  },
+  dream_search: {
+    displayPath: "/api/extra/dream",
+    params: [{ name: "keyword", required: T.yes, type: "string", desc: "梦境关键词", example: "水" }]
+  },
+  ping_check: {
+    displayPath: "/api/extra/ping",
+    params: [{ name: "host", required: T.yes, type: "string", desc: "域名或IP", example: "baidu.com" }]
+  },
+  qq_music_search: {
+    displayPath: "/api/music/qq/search",
+    params: [
+      { name: "keyword", required: T.yes, type: "string", desc: "歌曲名或歌手", example: "周杰伦 晴天" },
+      { name: "limit", required: T.no, type: "int", desc: "返回数量", example: "5" }
+    ]
+  },
+  kugou_music_search: {
+    displayPath: "/api/music/kugou/search",
+    params: [
+      { name: "keyword", required: T.yes, type: "string", desc: "歌曲名或歌手", example: "周杰伦 晴天" },
+      { name: "limit", required: T.no, type: "int", desc: "返回数量", example: "5" }
+    ]
+  },
+  video_parse: {
+    displayPath: '/api/parse/video',
+    exampleQuery: 'url=https%3A%2F%2Fv.kuaishou.com%2Fxxx',
+    getTextToQuery: value => `url=`,
+    params: [{ name: 'url', required: T.yes, type: 'string', desc: '短视频/视频分享链接，支持抖音、快手、小红书、皮皮虾、微博、西瓜、AcFun、TikTok、YouTube、Twitter等上千个平台', example: 'https://v.kuaishou.com/xxx' }]
+  },
+  xhs_parse: {
+    displayPath: "/api/parse/xhs",
+    params: [{ name: "url", required: T.yes, type: "string", desc: "小红书分享链接", example: "https://www.xiaohongshu.com/explore/xxx" }]
+  },
+  kuaishou_parse: {
+    displayPath: "/api/parse/kuaishou",
+    params: [{ name: "url", required: T.yes, type: "string", desc: "快手分享链接", example: "https://v.kuaishou.com/xxx" }]
+  },
+  pipix_parse: {
+    displayPath: "/api/parse/pipix",
+    params: [{ name: "url", required: T.yes, type: "string", desc: "皮皮虾分享链接", example: "https://h5.pipix.com/item/xxx" }]
+  },
+  lanzou_parse: {
+    displayPath: "/api/parse/lanzou",
+    params: [{ name: "url", required: T.yes, type: "string", desc: "蓝奏云分享链接", example: "https://xxx.lanzou.com/xxx" }]
+  },
+  emoji_search: {
+    displayPath: "/api/parse/emoji",
+    params: [
+      { name: "keyword", required: T.yes, type: "string", desc: "表情包关键词", example: "搞笑" },
+      { name: "limit", required: T.no, type: "int", desc: "返回数量", example: "20" }
     ]
   },
 };

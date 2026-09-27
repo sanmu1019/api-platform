@@ -2,7 +2,7 @@
 
 > 基础地址：`http://你的域名`  
 > 所有公开接口默认免鉴权，返回格式统一为 `{"code": 200, "msg": "success", "data": ...}`  
-> 所有 `/api/*` 接口同时支持 `/api/v1/*` 版本化路径
+> 仅部分基础模块同时提供 `/api/v1/*` 版本化路径，完整清单见 [版本化](#版本化)
 
 ---
 
@@ -16,13 +16,23 @@
 - [图片服务](#图片服务)
 - [媒体服务](#媒体服务)
 - [短视频解析](#短视频解析)
-- [爬虫聚合](#爬虫聚合)
+- [热榜聚合](#热榜聚合)
+- [汇率服务](#汇率服务)
+- [天气服务](#天气服务)
+- [节假日服务](#节假日服务)
+- [万年历服务](#万年历服务)
+- [行情服务](#行情服务)
+- [段子服务](#段子服务)
+- [趣味文案 extra](#趣味文案-extra)
+- [小工具 tools2](#小工具-tools2)
+- [音乐搜索](#音乐搜索)
 - [占卜服务](#占卜服务)
 - [域名服务](#域名服务)
 - [动态自定义接口](#动态自定义接口)
 - [系统服务](#系统服务)
 - [门户与页面](#门户与页面)
 - [后台管理](#后台管理)
+- [环境变量](#环境变量)
 - [通用说明](#通用说明)
 
 ---
@@ -32,10 +42,10 @@
 ### 测试接口
 
 ```
-GET /api/demo
+GET /api/v1/demo
 ```
 
-返回一段测试文本，用于验证服务是否正常。
+返回一段测试文本，用于验证服务是否正常。**只有 `/api/v1/demo` 路径**，`/api/demo` 不存在（会落到动态自定义接口，返回 404）。
 
 **响应示例：**
 ```json
@@ -65,12 +75,20 @@ GET /api/ip
 GET /api/time
 ```
 
-返回当前 Unix 时间戳和格式化时间。
+返回 Unix 时间戳和格式化时间。传 `value` 时把该时间戳转为格式化时间（没有单独的 `/api/tool/timestamp` 接口）。
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| value | int | 否 | Unix 时间戳（秒），不传则返回当前时间 |
 
 **响应示例：**
 ```json
 {"code": 200, "msg": "success", "data": {"timestamp": 1789689674, "datetime": "2026-09-18 08:01:14"}}
 ```
+
+**错误：** 时间戳超出可表示范围返回 `400`。
 
 ---
 
@@ -238,45 +256,7 @@ GET /api/yiyan
 
 ---
 
-### 随机昵称
-
-```
-GET /api/tool/nickname
-```
-
-随机生成中文昵称（前缀 + 后缀 + 两位数字）。
-
-**响应示例：**
-```json
-{"code": 200, "msg": "success", "data": {"nickname": "南栀逐风77"}}
-```
-
----
-
 ## 工具服务
-
-### 时间戳转换
-
-```
-GET /api/tool/timestamp?value=1700000000
-```
-
-将 Unix 时间戳转为格式化时间。不传参数返回当前时间。
-
-**查询参数：**
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| value | int | 否 | Unix 时间戳（秒） |
-
-**响应示例：**
-```json
-{"code": 200, "msg": "success", "data": {"timestamp": 1700000000, "datetime": "2023-11-15 06:13:20"}}
-```
-
-**错误：** 超出可表示范围返回 `400`。
-
----
 
 ### 哈希计算
 
@@ -350,43 +330,6 @@ GET /api/tool/uuid?count=3
 
 ---
 
-### 随机密码
-
-```
-GET /api/tool/password?length=20&symbols=true
-```
-
-生成指定长度的随机密码，包含大小写字母 + 数字，可选特殊符号。
-
-**查询参数：**
-
-| 参数 | 类型 | 必填 | 默认 | 说明 |
-|------|------|------|------|------|
-| length | int | 否 | 16 | 密码长度，6-64 |
-| symbols | bool | 否 | true | 是否包含特殊符号 |
-
-**响应示例：**
-```json
-{"code": 200, "msg": "success", "data": {"length": 20, "password": "ArBcEg!z&jC@!D1^AXi7"}}
-```
-
----
-
-### 随机颜色
-
-```
-GET /api/tool/color
-```
-
-生成随机 HEX 和 RGB 颜色。
-
-**响应示例：**
-```json
-{"code": 200, "msg": "success", "data": {"hex": "#6743d0", "rgb": [103, 67, 208]}}
-```
-
----
-
 ### 短码生成
 
 ```
@@ -428,29 +371,6 @@ GET /api/avatar/random?seed=test&style=adventurer
 **响应示例：**
 ```json
 {"code": 200, "msg": "success", "data": {"seed": "test", "style": "adventurer", "url": "https://api.dicebear.com/9.x/adventurer/svg?seed=test"}}
-```
-
----
-
-### 占位图 URL
-
-```
-GET /api/image/placeholder?width=300&height=200&text=API
-```
-
-生成指定尺寸的 placehold.co 占位图 URL。
-
-**查询参数：**
-
-| 参数 | 类型 | 必填 | 默认 | 说明 |
-|------|------|------|------|------|
-| width | int | 否 | 600 | 宽度，1-3000 |
-| height | int | 否 | 400 | 高度，1-3000 |
-| text | string | 否 | API | 占位图文字 |
-
-**响应示例：**
-```json
-{"code": 200, "msg": "success", "data": {"width": 300, "height": 200, "text": "API", "url": "https://placehold.co/300x200?text=API"}}
 ```
 
 ---
@@ -539,6 +459,25 @@ GET /api/bilibili/cover?bvid=BV1GJ411x7h7
 
 ---
 
+### B站视频代理
+
+```
+GET /api/bilibili/proxy?bvid=BV1GJ411x7h7&type=mp4
+```
+
+服务端带上 `Referer: https://www.bilibili.com/` 拉取 B 站视频流并**流式转发**，浏览器 `<video>` 可直接播放。返回视频二进制（`Content-Type: video/mp4`），不是 JSON。
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|------|------|------|------|------|
+| bvid | string | 是 | — | BV 号，格式 `BV[0-9A-Za-z]{8,20}` |
+| type | string | 否 | mp4 | `mp4`（durl 直链）/ `dash`（取第一条视频轨，无音轨） |
+
+**错误：** BV 号格式错误 `400`；视频不存在 `404`；获取视频信息 / 播放地址失败 `502`。
+
+---
+
 ## 短视频解析
 
 ### 抖音无水印解析
@@ -598,40 +537,42 @@ GET|POST /api/douyin/parse?url=https://v.douyin.com/xxx&timeout=6
 
 ---
 
-## 爬虫聚合
-
-> 以下接口返回本地种子数据（`sample: true`），结构参考真实爬虫接口，非实时数据源。
-
-### 新闻分类
+### 微信视频号解析
 
 ```
-GET /api/news/categories
+GET /api/wxsph/parse?url=https://weixin.qq.com/sph/xxxx
 ```
 
-返回新闻分类列表。
-
-**响应示例：**
-```json
-{"code": 200, "msg": "success", "data": [{"type": 0, "name": "头条"}, {"type": 1, "name": "军事"}, "..."]}
-```
-
----
-
-### 新闻列表
-
-```
-GET /api/news/list?type=0&page=1&size=10
-```
-
-按分类分页返回新闻列表。
+解析微信视频号分享链接，返回标题、封面、作者和视频直链，结果缓存 10 分钟。需要配置元宝 cookie（`config.json` 的 `wxsph_cookie`，或环境变量 `WXSPH_COOKIE`），未配置返回 `500`。
 
 **查询参数：**
 
-| 参数 | 类型 | 必填 | 默认 | 说明 |
-|------|------|------|------|------|
-| type | int | 否 | 0 | 分类下标，0-7 |
-| page | int | 否 | 1 | 页码，>=1 |
-| size | int | 否 | 10 | 每页条数，1-50 |
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| url | string | 是 | 分享链接，只支持 `https://weixin.qq.com/sph/...`，可带前后文本 |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"title": "视频标题", "cover": "https://...", "video_url": "https://...", "author": "作者昵称", "share_url": "https://weixin.qq.com/sph/xxxx", "source": "wechat_channels"}}
+```
+
+**错误：** 链接格式不对 `400`；未配置 cookie `500`。
+
+---
+
+### 通用短视频解析
+
+```
+GET /api/parse/video?url=分享链接
+```
+
+通用短视频 / 图集去水印解析（皮皮虾、小红书等平台统一走这一个接口，没有按平台拆分的 `/api/parse/xxx` 路径）。
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| url | string | 是 | 短视频分享链接 |
 
 **响应示例：**
 ```json
@@ -639,69 +580,532 @@ GET /api/news/list?type=0&page=1&size=10
   "code": 200,
   "msg": "success",
   "data": {
-    "page": 1, "size": 5, "total": 4,
-    "items": [{"postid": "N20260521001-0-1", "title": "...", "source": "科技日报", "digest": "...", "ptime": "2026-09-18 09:01:00"}],
-    "sample": true
+    "title": "标题",
+    "video_url": "https://...",
+    "cover_url": "https://...",
+    "music_url": "",
+    "author": {"uid": "123", "name": "作者", "avatar": "https://..."},
+    "images": [{"url": "https://...", "live_photo_url": ""}]
   }
 }
 ```
 
+**错误：** 链接非法 / 不支持 / 被 SSRF 拦截 `400`；上游解析失败 `500`。
+
 ---
 
-### 新闻详情
+## 热榜聚合
+
+实时抓取多平台热榜，数据缓存 5 分钟。GitHub Trending 国内直连超时，需配置 `douyin_proxy` 代理。
+
+### 平台热榜
 
 ```
-GET /api/news/detail?postid=N20260521001-0-1
+GET /api/hot/{platform}?limit=20
 ```
 
-按 postid 返回新闻详情。未知 postid 返回 `404`。
+获取指定平台的热榜。
+
+**路径参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| platform | string | 是 | 平台标识：`weibo` / `baidu` / `github` / `bilibili`（没有单独的平台列表接口，传错时 400 错误信息会列出可选值） |
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|------|------|------|------|------|
+| limit | int | 否 | 20 | 返回条数，1-50 |
+
+**各平台返回字段：**
+
+| 平台 | 字段 |
+|------|------|
+| weibo | rank, title, hot(热度值), url, tag(热/新/沸) |
+| baidu | rank, title, hot(热度值), url, desc |
+| github | rank, title(owner/repo), url, desc |
+| bilibili | rank, title, up(UP主), play(播放量), url, pic(封面) |
+
+**响应示例（微博）：**
+```json
+{
+  "code": 200,
+  "msg": "success",
+  "data": {
+    "platform": "weibo",
+    "name": "微博热搜",
+    "count": 3,
+    "items": [
+      {"rank": 1, "title": "示例热搜", "hot": 2410189, "url": "https://s.weibo.com/...", "tag": "热"}
+    ],
+    "cached": true
+  }
+}
+```
+
+**错误：** 不支持的 platform 返回 `400`；上游抓取失败且无缓存时返回 `502`。
+
+> **代理配置：** GitHub Trending 需在 `config.json` 中设置 `"douyin_proxy": "http://127.0.0.1:7890"`，与抖音解析共用代理。
+
+---
+
+## 汇率服务
+
+基于 [Frankfurter](https://www.frankfurter.app/) 开源 API，数据来源欧洲央行（ECB），免 key，汇率缓存 1 小时。支持 30+ 主流货币。
+
+### 汇率查询
+
+```
+GET /api/exchange/rate?from=USD&to=CNY&date=2026-09-18
+```
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|------|------|------|------|------|
+| from | string | 否 | USD | 源货币代码（3位大写） |
+| to | string | 否 | CNY | 目标货币代码（3位大写） |
+| date | string | 否 | 最新 | 历史日期 YYYY-MM-DD |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"from": "USD", "to": "CNY", "rate": 7.18, "date": "2026-09-17", "amount": 1}}
+```
+
+---
+
+### 货币转换
+
+```
+GET /api/exchange/convert?from=EUR&to=JPY&amount=100
+```
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|------|------|------|------|------|
+| from | string | 否 | USD | 源货币代码 |
+| to | string | 否 | CNY | 目标货币代码 |
+| amount | float | 否 | 1.0 | 金额，须大于0 |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"from": "EUR", "to": "JPY", "amount": 100, "rate": 178.75, "result": 17875.0, "date": "2026-09-17"}}
+```
+
+---
+
+## 天气服务
+
+基于 [Open-Meteo](https://open-meteo.com/) 免 key API，CC BY 4.0 协议。天气数据缓存 10 分钟。
+
+### 实时天气
+
+```
+GET /api/weather/current?city=北京
+```
+
+按城市名查询实时天气，服务端先做地理编码再查天气（不支持直接传经纬度）。
 
 **查询参数：**
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| postid | string | 是 | 新闻 ID，>=3 字符 |
+| city | string | 是 | 城市名，1-50 字符，如 北京、上海、南阳 |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"city": "北京", "region": "Beijing", "country": "中国", "latitude": 39.9, "longitude": 116.4, "timezone": "Asia/Shanghai", "temperature": 21.3, "apparent_temperature": 20.1, "humidity": 45, "weather": "晴", "weather_code": 0, "wind_speed": 8.6, "wind_direction": 180, "pressure": 1012.4, "time": "2026-09-18T08:00", "units": {"temperature": "°C", "humidity": "%", "wind_speed": "km/h", "pressure": "hPa"}}}
+```
 
 ---
 
-### 视频列表
+## 节假日服务
+
+基于 [chinesecalendar](https://github.com/LKI/chinese-calendar) 库，数据来源国务院公告，支持 2004-2026 年。
+
+### 单日查询
 
 ```
-GET /api/video/list?type=全部&page=1&size=10
+GET /api/holiday/check?date=2026-10-01
+```
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| date | string | 是 | 日期 YYYY-MM-DD |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"date": "2026-10-01", "weekday": "Thursday", "is_workday": false, "is_holiday": true, "is_in_lieu": false, "holiday_name": "National Day"}}
+```
+
+---
+
+## 万年历服务
+
+基于 [lunar-python](https://github.com/6tail/lunar-python) 纯算法库，零依赖，支持公历转农历、干支、生肖、节气、宜忌、吉神方位、星宿等。
+
+### 当日黄历
+
+```
+GET /api/lunar/day?date=2026-10-01
+```
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| date | string | 是 | 公历日期 YYYY-MM-DD |
+
+**响应字段：**
+
+| 字段 | 说明 |
+|------|------|
+| solar | 公历日期、星期 |
+| lunar | 农历年/月/日、完整表述 |
+| ganzhi | 年月日时干支 |
+| shengxiao | 生肖 |
+| jieqi | 当前节气 |
+| yi | 宜（列表） |
+| ji | 忌（列表） |
+| pengzu | 彭祖百忌（干/支） |
+| chongsha | 冲煞 |
+| nayin | 纳音（年/月/日） |
+| lucky_directions | 吉神方位（喜神/福神/财神等） |
+| taishen | 胎神占方 |
+| xingxiu | 二十八星宿（名/禽/吉凶） |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"lunar": {"full": "二〇二六年八月廿一"}, "ganzhi": {"year": "丙午", "month": "丁酉", "day": "戊申"}, "shengxiao": "马", "yi": ["冠笄", "沐浴", "出行"], "ji": ["嫁娶", "开市", "祭祀"]}}
+```
+
+---
+
+## 行情服务
+
+基于腾讯财经公开行情接口，免 key，数据缓存 5 分钟。覆盖国际黄金、白银、原油期货。
+
+### 黄金行情
+
+```
+GET /api/price/gold
+```
+
+返回纽约黄金期货行情：price(最新价), change_pct(涨跌幅%), open, high, low, prev_close, time, date, unit(美元/盎司)
+
+---
+
+### 白银行情
+
+```
+GET /api/price/silver
+```
+
+返回纽约白银期货行情，单位：美元/盎司。
+
+---
+
+### 原油行情
+
+```
+GET /api/price/oil
+```
+
+返回 WTI 纽约原油期货行情，单位：美元/桶。
+
+---
+
+## 段子服务
+
+内置中文段子数据集，纯本地随机，不依赖外部服务。可自行扩充 `apis/joke/jokes.json`。
+
+### 随机段子
+
+```
+GET /api/joke/random
+```
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"id": 3, "title": "面试", "content": "面试官：你最大的缺点是什么？..."}, "total": 40}
+```
+
+---
+
+## 趣味文案 extra
+
+纯本地数据或本地算法，不依赖外部服务（`/api/extra/ping` 除外）。
+
+### 随机文案
+
+```
+GET /api/extra/xiehouyu/random
+GET /api/extra/renwen/random
+GET /api/extra/tuwei/random
+GET /api/extra/dujitang/random
+GET /api/extra/mingren/random
+```
+
+| 路径 | 说明 | data 字段 |
+|------|------|------|
+| `/api/extra/xiehouyu/random` | 随机歇后语 | `q` 前半句，`a` 后半句 |
+| `/api/extra/renwen/random` | 随机谜语 | `q` 谜面，`a` 谜底 |
+| `/api/extra/tuwei/random` | 随机土味情话 | `text` |
+| `/api/extra/dujitang/random` | 随机毒鸡汤 | `text` |
+| `/api/extra/mingren/random` | 随机名人名言 | `c` 名言，`a` 作者 |
+
+无参数。响应顶层额外带 `total`（库内条数）。
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"q": "八仙过海", "a": "各显神通"}, "total": 608}
+```
+
+---
+
+### 汉字转拼音
+
+```
+GET /api/extra/pinyin?text=你好
+```
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| text | string | 是 | 要转换的汉字 |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"text": "你好", "pinyin": "ni hao", "list": ["ni", "hao"]}}
+```
+
+---
+
+### 金额大写
+
+```
+GET /api/extra/number/upper?number=1234.56
+```
+
+人民币金额小写转大写。
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| number | string | 是 | 数字，如 `1234.56` |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"number": "1234.56", "upper": "壹仟贰佰叁拾肆元伍角陆分"}}
+```
+
+**错误：** 非数字时返回 HTTP 400，body 为 `{"code": 400, "msg": "无效数字"}`。
+
+---
+
+### 简繁转换
+
+```
+GET /api/extra/convert/zh?text=漢字&mode=to_jian
 ```
 
 **查询参数：**
 
 | 参数 | 类型 | 必填 | 默认 | 说明 |
 |------|------|------|------|------|
-| type | string | 否 | 全部 | 视频类型筛选 |
-| page | int | 否 | 1 | 页码 |
-| size | int | 否 | 10 | 每页条数，1-50 |
+| text | string | 是 | — | 待转换文本 |
+| mode | string | 否 | to_jian | `to_jian` 繁转简 / `to_fan` 简转繁 |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"text": "漢字", "mode": "to_jian", "result": "汉字"}}
+```
 
 ---
 
-### 视频详情
+### 周公解梦
 
 ```
-GET /api/video/detail?vid=V10001
+GET /api/extra/dream?keyword=水
 ```
 
-未知 vid 返回 `404`。
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| keyword | string | 是 | 梦境关键词，如 水 / 火 / 蛇 |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"k": "水", "m": "主财运。梦见自己喝水……"}}
+```
+
+**错误：** 未命中时返回 HTTP 404，body 为 `{"code": 404, "msg": "未找到关于「xx」的解梦"}`。
 
 ---
 
-### 图片相册
+### 主机连通性检测
 
 ```
-GET /api/picture/cosplay?page=1&size=10
+GET /api/extra/ping?host=baidu.com
+```
+
+对目标主机的 TCP 80 / 443 端口各做一次 3 秒连接探测（不是 ICMP ping）。只允许公网主机。
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| host | string | 是 | 域名或 IP，可带 `http(s)://` 前缀，会自动去掉 |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"host": "baidu.com", "reachable": true, "ports": [{"port": 80, "reachable": true}, {"port": 443, "reachable": true}]}}
+```
+
+**错误：** 无法解析 `400`；内网 / 保留地址 `403`。
+
+---
+
+## 小工具 tools2
+
+### 车牌归属地
+
+```
+GET /api/tools2/carplate?code=京A
+```
+
+按车牌首字（省份简称）返回省份。
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| code | string | 是 | 车牌号或前缀，如 `京A` |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"code": "京A", "province": "北京"}}
+```
+
+**错误：** 未知车牌 `404`。
+
+---
+
+### 答案之书
+
+```
+GET /api/tools2/answer?question=要不要换工作
+```
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| question | string | 是 | 你想问的问题 |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"question": "要不要换工作", "answer": "顺其自然。"}}
+```
+
+---
+
+### 今天吃什么
+
+```
+GET /api/tools2/food
+```
+
+无参数，随机推荐一种美食。
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"food": "火锅"}}
+```
+
+---
+
+### 今日人品
+
+```
+GET /api/tools2/luck?name=张三
+```
+
+按「名字 + 当天日期」确定性生成，同一天同一名字结果不变。
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| name | string | 是 | 名字 |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": {"name": "张三", "score": 88, "tag": "中吉", "date": "2026-09-18"}}
+```
+
+---
+
+### 最近地震
+
+```
+GET /api/tools2/earthquake?limit=10
+```
+
+转发 wolfx.jp 的日本气象厅（JMA）地震数据，`data` 为上游原始结构（其中的列表字段按 `limit` 截断）。
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|------|------|------|------|------|
+| limit | int | 否 | 10 | 返回数量，1-50 |
+
+**错误：** 上游失败时返回 HTTP 502，body 为 `{"code": 502, "msg": "上游地震数据请求失败"}`。
+
+---
+
+## 音乐搜索
+
+若设置了环境变量 `HTTP_PROXY` / `HTTPS_PROXY`，请求上游时会走该代理（见 [环境变量](#环境变量)）。
+
+### QQ 音乐搜索
+
+```
+GET /api/music/qq/search?keyword=晴天&limit=10
 ```
 
 **查询参数：**
 
 | 参数 | 类型 | 必填 | 默认 | 说明 |
 |------|------|------|------|------|
-| page | int | 否 | 1 | 页码 |
-| size | int | 否 | 10 | 每页条数，1-30 |
+| keyword | string | 是 | — | 歌曲名或歌手 |
+| limit | int | 否 | 10 | 返回数量 |
+
+**响应示例：**
+```json
+{"code": 200, "msg": "success", "data": [{"title": "晴天", "author": "周杰伦", "album": "叶惠美", "songmid": "0039MnYb0qxYhV", "play_url": "https://isure.stream.qqmusic.qq.com/..."}], "total": 1}
+```
+
+`play_url` 可能为空（版权 / VIP 歌曲）。
+
+---
+
+### 酷狗音乐搜索
+
+```
+GET /api/music/kugou/search?keyword=晴天&limit=10
+```
+
+参数同 QQ 音乐搜索。
+
+**错误：** 未找到歌曲时返回 HTTP 404；上游异常时返回 HTTP 502。
 
 ---
 
@@ -868,7 +1272,15 @@ ANY /api/custom/{slug}
 | `{{client.host}}` | 客户端 IP |
 | `{{now.iso}}` / `{{now.timestamp}}` | 当前时间 |
 
-**响应类型：** json / text / html，由后台配置决定。
+两条路径等价，`slug` 即后台创建时的接口 `name`，只匹配**自定义接口**（`is_builtin = 0`），不能用来访问内置接口。`/api/{slug}` 是兜底路由，没有命中内置路由的单段 `/api/xxx` 路径都会落到这里。
+
+**响应类型：** json / text / html，由后台配置决定。json 类型会包装成 `{"code": 状态码, "msg": "成功", "data": 渲染结果}`；text / html 原样返回。
+
+**鉴权：** 与内置接口走同一套 Api-Key 校验：
+- 默认免 Key，统计记为 `public`
+- 传了 `Api-Key` / `X-API-Key` 头会校验：Key 无效或已停用 `403`，当日额度用尽 `429`
+- `require_api_key: true` 时不传 Key 返回 `401`
+- 校验顺序：先查接口是否存在 / 启用，再校验 Key，最后校验请求方法
 
 **错误：** 接口不存在 `404`；已停用 `403`；方法不匹配 `405`；JSON 模板配置错误 `500`。
 
@@ -881,6 +1293,8 @@ ANY /api/custom/{slug}
 ```
 GET /api/version
 ```
+
+只有 `/api/version` 这一个路径（没有 `/api/v1/version`），走 Api-Key 校验，规则同其他公开接口。
 
 **响应示例：**
 ```json
@@ -914,19 +1328,21 @@ GET /health
 | `/portal/apis/{name}` | GET | 单个接口详情数据 |
 | `/portal/site` | GET | 站点配置信息 |
 | `/doc/{name}.html` | GET | 单个接口文档页 |
+| `/doc-{name}.html` | GET | 接口文档页旧路径（兼容） |
 | `/health` | GET | 健康检查 |
 
 ---
 
 ## 后台管理
 
-> 后台路径默认为 `/manage-api`，可通过 `admin_public_path` 配置修改。所有接口需 `Admin-Token` 请求头或 `admin_token` Cookie（登录后自动设置）。
+> 后台路径默认为 `/manage-api`，可通过 `admin_public_path` 配置修改（下表均以默认路径书写）。除 `GET /manage-api`、`/login`、`/logout` 外，所有接口需 `Admin-Token` 请求头或 `admin_token` Cookie（登录后自动设置，有效期 8 小时）。可用 `admin_ip_allowlist` 限制后台来源 IP。除登录外，参数均为 query 参数。
 
 ### 认证
 
 | 路径 | 方法 | 说明 |
 |------|------|------|
-| `/manage-api/login` | POST | 登录，Body `{"token": "xxx"}`，失败有 IP 限流（默认 5 次/300秒） |
+| `/manage-api` | GET | 后台管理页面（HTML，页面内登录） |
+| `/manage-api/login` | POST | 登录，JSON Body `{"token": "YOUR_ADMIN_TOKEN"}`，失败有 IP 限流（默认 5 次/300秒，超限 `429`） |
 | `/manage-api/logout` | POST | 登出，清除 Cookie |
 | `/manage-api/session` | GET | 当前会话信息 |
 
@@ -935,8 +1351,8 @@ GET /health
 | 路径 | 方法 | 说明 |
 |------|------|------|
 | `/manage-api/apis` | GET | 接口列表 |
-| `/manage-api/apis` | POST | 创建自定义接口 |
-| `/manage-api/apis/{name}` | PATCH | 更新接口（内置接口的 path/method/response 不可改） |
+| `/manage-api/apis` | POST | 创建自定义接口，必填 `name` / `path` / `title` / `description`，可选 `category` / `method` / `response_type` / `response_body` / `status_code` / `sort_order` / `enabled` |
+| `/manage-api/apis/{name}` | PATCH | 更新接口，参数同创建（均可选）；内置接口的 path/method/response 不可改 |
 | `/manage-api/apis/{name}` | DELETE | 删除接口（仅自定义） |
 | `/manage-api/categories` | GET | 分类统计 |
 | `/manage-api/route-check` | GET | 路由巡检（标记数据库中已失效的幽灵接口） |
@@ -955,8 +1371,8 @@ GET /health
 | 路径 | 方法 | 说明 |
 |------|------|------|
 | `/manage-api/stats` | GET | 调用统计（按接口、按 Key、最近访问） |
-| `/manage-api/access-logs` | GET | 访问日志，参数 `limit`(1-500) / `status_min` |
-| `/manage-api/access-logs.csv` | GET | 日志 CSV 导出（含公式注入防护），参数 `limit`(1-10000) |
+| `/manage-api/access-logs` | GET | 访问日志，参数 `limit`(1-500，默认 50) / `status_min` |
+| `/manage-api/access-logs.csv` | GET | 日志 CSV 导出（含公式注入防护），参数 `limit`(1-10000，默认 1000) / `status_min` |
 | `/manage-api/douyin-health` | GET | 抖音解析健康状态（连续失败次数、告警阈值） |
 
 ### 站点与备份
@@ -966,6 +1382,19 @@ GET /health
 | `/manage-api/site-settings` | GET | 站点配置 |
 | `/manage-api/site-settings` | PATCH | 更新站点配置（site_name / logo_text / hero_title / hero_subtitle） |
 | `/manage-api/backup/database` | GET | 下载 SQLite 数据库备份 |
+
+---
+
+## 环境变量
+
+以下配置可通过环境变量提供，真实值不要提交到仓库：
+
+| 变量 | 作用 | 示例 |
+|------|------|------|
+| `WXSPH_COOKIE` | 微信视频号解析（`/api/wxsph/parse`）用的元宝 cookie；`config.json` 的 `wxsph_cookie` 优先，为空时才读此变量 | `WXSPH_COOKIE=YOUR_YUANBAO_COOKIE` |
+| `HTTP_PROXY` / `HTTPS_PROXY` | 音乐搜索（`/api/music/*`）请求上游时使用的代理，优先取 `HTTP_PROXY`；进程启动时读取 | `HTTP_PROXY=http://127.0.0.1:7890` |
+
+> 抖音解析和 GitHub 热榜使用 `config.json` 里的 `douyin_proxy`，不读上面的代理变量。
 
 ---
 
@@ -1008,6 +1437,20 @@ GET /health
 
 ### 版本化
 
-所有 `/api/*` 接口同时支持 `/api/v1/*` 路径，例如：
+**不是**所有 `/api/*` 接口都有 `/api/v1/*` 路径。只有 `apis/versioned.py` 登记的 8 个模块被别名到 `/api/v1`（别名同样走 Api-Key 校验），其余模块（yiyan、热榜、汇率、天气、节假日、万年历、行情、段子、占卜、域名、视频号、抖音、通用解析、extra、tools2、music、自定义接口）只有 `/api/*` 路径。
+
+| 模块 | `/api/v1/*` 路径 |
+|------|------|
+| demo | `/api/v1/demo`（仅此路径，无 `/api/demo`） |
+| ip | `/api/v1/ip` |
+| time | `/api/v1/time` |
+| phone | `/api/v1/phone/{phone}` |
+| word | `/api/v1/word/random` |
+| freeapi | `/api/v1/avatar/random`、`/api/v1/short/hash`、`/api/v1/bilibili/cover`、`/api/v1/bilibili/proxy`、`/api/v1/bing/daily` |
+| tools | `/api/v1/tool/hash`、`/api/v1/tool/base64`、`/api/v1/tool/uuid`、`/api/v1/image/qrcode` |
+| spider | `/api/v1/history/today`、`/api/v1/idiom/search`、`/api/v1/poetry/tang` |
+
+例如：
 - `/api/tool/hash` ≡ `/api/v1/tool/hash`
 - `/api/ip` ≡ `/api/v1/ip`
+- `/api/v1/hot/weibo` **不存在**，请用 `/api/hot/weibo`

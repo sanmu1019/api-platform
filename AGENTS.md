@@ -9,7 +9,7 @@ This repository is a FastAPI-based API portal with a small static frontend.
 - `core/`: shared configuration, database access, middleware, auth dependencies, and exceptions.
 - `frontend/`: static HTML pages and browser-side assets.
 - `static/`: public static resources.
-- `tests/`: pytest suite, currently centered in `tests/test_app.py`.
+- `tests/`: pytest suite (`tests/test_*.py`).
 - `scripts/`: smoke tests and release helpers.
 - `deploy/`: deployment examples such as service and nginx config.
 
@@ -30,7 +30,7 @@ Use 4-space indentation in Python. Keep modules small and feature-oriented under
 Add or update pytest coverage for any backend behavior change. Place tests in `tests/` and name files `test_*.py`; name test functions `test_*`. For new endpoints, cover both success and failure paths, especially auth, rate-limit, and config-sensitive behavior. Run `python -m pytest -q` before submitting changes, then use the smoke scripts when API surface changes.
 
 ## Commit & Pull Request Guidelines
-Git history is not available in this checkout, so use short, imperative commit messages such as `add admin login rate limit` or `fix tool hash response`. Keep each commit focused. Pull requests should include: a concise summary, affected routes/files, config changes, test results, and screenshots for frontend/admin page updates.
+Use short, imperative commit messages such as `add admin login rate limit` or `fix tool hash response`. Keep each commit focused. Pull requests should include: a concise summary, affected routes/files, config changes, test results, and screenshots for frontend/admin page updates.
 
 ## Security & Configuration Tips
 Do not commit secrets in `config.json`. Replace default admin and API keys outside local development. Review `ADMIN_PUBLIC_PATH`, self-registration, allowlists, and rate-limit settings before deployment.

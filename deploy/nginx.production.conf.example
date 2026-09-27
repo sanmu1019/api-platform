@@ -72,7 +72,9 @@ server {
         #   X-Forwarded-Proto          -> 保留原始协议，便于后续排查
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        # 必须用 $remote_addr 覆盖，而不是 $proxy_add_x_forwarded_for：
+        # 后者会保留客户端伪造的 XFF 头，可绕过 IP 白名单与限流。
+        proxy_set_header X-Forwarded-For   $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
 
         proxy_connect_timeout 5s;
@@ -91,7 +93,7 @@ server {
     #     proxy_pass http://127.0.0.1:8000;
     #     proxy_set_header Host              $host;
     #     proxy_set_header X-Real-IP         $remote_addr;
-    #     proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    #     proxy_set_header X-Forwarded-For   $remote_addr;
     #     proxy_set_header X-Forwarded-Proto $scheme;
     # }
 }

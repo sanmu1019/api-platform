@@ -16,8 +16,8 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 
 from core.config import settings
 from core.database import API_PRESENTATION, DEFAULT_SITE_SETTINGS, get_conn
-from core.depends import verify_admin_token
-from core.middleware import client_ip
+from core.depends import ADMIN_SESSION_TTL, make_admin_session, verify_admin_token
+from core.middleware import client_ip, mask_api_key
 from core.routing import api_route_index, route_exists
 
 router = APIRouter(prefix=settings.normalized_admin_path, tags=["admin"])
@@ -148,9 +148,8 @@ def login(
     response: Response,
     request: Request,
     payload: dict[str, str] | None = Body(default=None),
-    token: str | None = Query(default=None),
 ) -> dict:
-    token = token or ((payload or {}).get("token") or "")
+    token = (payload or {}).get("token") or ""
     if not token:
         raise HTTPException(status_code=400, detail="Admin-Token 不能为空")
     ip = client_ip(request)
@@ -169,17 +168,17 @@ def login(
     q.clear()
     response.set_cookie(
         key="admin_token",
-        value=token,
+        value=make_admin_session(),
         httponly=True,
         samesite="lax",
         secure=settings.is_production,
-        max_age=60 * 60 * 8,
+        max_age=ADMIN_SESSION_TTL,
         path="/",
     )
     return {
         "code": 200,
         "msg": "登录成功",
-        "data": {"user": "admin", "expires_in": 60 * 60 * 8, "login_ip": ip},
+        "data": {"user": "admin", "expires_in": ADMIN_SESSION_TTL, "login_ip": ip},
     }
 
 
@@ -496,7 +495,7 @@ def stats() -> dict:
             "error_total": error_total,
             "by_api": [dict(row) for row in by_api],
             "by_key": [dict(row) for row in by_key],
-            "api_keys": [dict(row) for row in keys],
+            "api_keys": [{**dict(row), "key": mask_api_key(row["key"])} for row in keys],
             "recent_access": [dict(row) for row in recent],
         },
     }

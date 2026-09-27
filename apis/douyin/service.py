@@ -21,9 +21,11 @@ from . import detail_api
 from core.config import settings
 
 
-URL_RE = re.compile(r'https?://[^\s<>"]+?(?:douyin\.com|iesdouyin\.com)[^\s<>"]*')
+URL_RE = re.compile(r'https?://[^\s<>"]+')
 AWEME_RE = re.compile(r"(?:video|note)/(\d+)")
 TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.I | re.S)
+_DOUYIN_DOMAINS = ("douyin.com", "iesdouyin.com")
+_REDIRECT_STATUS = {301, 302, 303, 307, 308}
 
 USER_AGENT = (
     "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) "
@@ -49,12 +51,51 @@ class FetchResult:
     headers: dict[str, str] = field(default_factory=dict)
 
 
-def extract_url(text: str) -> str:
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _is_douyin_url(url: str) -> bool:
+    try:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme.lower() not in {"http", "https"}:
+            return False
+        if parsed.username is not None or parsed.password is not None:
+            return False
+        if parsed.port is not None and parsed.port not in {80, 443}:
+            return False
+        host = (parsed.hostname or "").lower().rstrip(".")
+        return any(host == domain or host.endswith("." + domain) for domain in _DOUYIN_DOMAINS)
+    except (TypeError, ValueError):
+        return False
+
+
+def _validate_douyin_url(url: str) -> None:
+    if not _is_douyin_url(url):
+        raise DouyinParseError("只允许解析抖音官方域名", {"input_url": url, "stage": "validate"})
+    from core.netsecurity import check_public_url
+
+    ok, reason = check_public_url(url, resolve_dns=True)
+    if not ok:
+        raise DouyinParseError(f"不允许访问该地址：{reason}", {"input_url": url, "stage": "validate"})
+
+
+def _legacy_extract_url(text: str) -> str:
     """从分享文本中提取第一个抖音 URL。"""
     match = URL_RE.search(text or "")
     if not match:
         raise DouyinParseError("未找到抖音链接", {"input": text})
     return match.group(0).rstrip("，。.!！?？、/")
+
+
+def extract_url(text: str) -> str:
+    """Extract the first URL whose actual hostname belongs to Douyin."""
+    for match in URL_RE.finditer(text or ""):
+        candidate = match.group(0).rstrip("，。?!）】/")
+        if _is_douyin_url(candidate):
+            return candidate
+    raise DouyinParseError("未找到抖音官方链接", {"input": text})
 
 
 def _title(html: str) -> str:
@@ -64,7 +105,7 @@ def _title(html: str) -> str:
     return re.sub(r"\s+", " ", unescape(match.group(1))).strip()
 
 
-def _fetch(url: str, timeout: float = 6.0, max_bytes: int = 2_000_000) -> FetchResult:
+def _legacy_fetch(url: str, timeout: float = 6.0, max_bytes: int = 2_000_000) -> FetchResult:
     req = urllib.request.Request(
         url,
         headers={
@@ -102,6 +143,62 @@ def _fetch(url: str, timeout: float = 6.0, max_bytes: int = 2_000_000) -> FetchR
         raise DouyinParseError(f"请求抖音页面失败：{exc.reason}", {"input_url": url, "stage": "fetch"}) from exc
     except Exception as exc:  # pragma: no cover
         raise DouyinParseError(f"请求抖音页面失败：{exc}", {"input_url": url, "stage": "fetch"}) from exc
+
+
+def _fetch(url: str, timeout: float = 6.0, max_bytes: int = 2_000_000) -> FetchResult:
+    """Fetch Douyin pages with validation on the input and every redirect."""
+    _validate_douyin_url(url)
+    proxy_handler = urllib.request.ProxyHandler(
+        {"http": settings.douyin_proxy, "https": settings.douyin_proxy}
+    ) if settings.douyin_proxy else urllib.request.ProxyHandler({})
+    opener = urllib.request.build_opener(proxy_handler, _NoRedirectHandler())
+
+    current_url = url
+    for _ in range(6):
+        _validate_douyin_url(current_url)
+        req = urllib.request.Request(
+            current_url,
+            headers={
+                "User-Agent": USER_AGENT,
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                "Connection": "close",
+            },
+        )
+        try:
+            response = opener.open(req, timeout=timeout)
+        except urllib.error.HTTPError as exc:
+            if exc.code not in _REDIRECT_STATUS:
+                raise
+            response = exc
+
+        with response as resp:
+            status = getattr(resp, "status", None) or getattr(resp, "code", None)
+            if status in _REDIRECT_STATUS:
+                location = resp.headers.get("location", "")
+                if not location:
+                    raise DouyinParseError(
+                        "抖音页面重定向缺少目标地址",
+                        {"input_url": url, "stage": "redirect"},
+                    )
+                current_url = urllib.parse.urljoin(current_url, location)
+                continue
+
+            final_url = resp.geturl() or current_url
+            _validate_douyin_url(final_url)
+            raw = resp.read(max_bytes)
+            charset = resp.headers.get_content_charset() or "utf-8"
+            html = raw.decode(charset, errors="replace")
+            return FetchResult(
+                input_url=url,
+                final_url=final_url,
+                html=html,
+                status=status,
+                title=_title(html),
+                headers={k: v for k, v in resp.headers.items()},
+            )
+
+    raise DouyinParseError("抖音页面重定向次数过多", {"input_url": url, "stage": "redirect"})
 
 
 def _extract_aweme_id(url: str, html: str) -> str:

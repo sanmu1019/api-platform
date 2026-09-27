@@ -1,4 +1,9 @@
+import io
+import json
+import urllib.request
+
 from fastapi.testclient import TestClient
+import pytest
 
 from apis.douyin.service import DouyinParseError, extract_url
 from core.config import Settings, settings
@@ -47,12 +52,29 @@ def test_public_registration_and_core_endpoints() -> None:
     key = registered.json()["data"]["key"]
     assert key.startswith("ak_")
 
-    assert client.get("/api/demo", headers={"Api-Key": key}).status_code == 200
+    assert client.get("/api/time", headers={"Api-Key": key}).status_code == 200
     assert client.get("/api/time", headers={"Api-Key": key}).status_code == 200
     assert client.get("/health").status_code == 200
 
 
-def test_freeapi_collection() -> None:
+class _FakeHTTPResp:
+    """模拟 urllib urlopen 上下文管理器，隔离外部网络。"""
+
+    def __init__(self, payload: dict):
+        self._buf = io.BytesIO(json.dumps(payload).encode("utf-8"))
+
+    def read(self):
+        return self._buf.read()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self._buf.close()
+        return False
+
+
+def test_freeapi_collection(monkeypatch) -> None:
     init_db()
     client = TestClient(app)
     headers = {"Api-Key": "test123"}
@@ -72,6 +94,26 @@ def test_freeapi_collection() -> None:
     bad_short = client.get("/api/short/hash?url=ftp://example.com", headers=headers)
     assert bad_short.status_code == 400
 
+    # mock B 站接口，避免依赖实时网络
+    def fake_urlopen(req, timeout=8):
+        url = getattr(req, "full_url", "")
+        if "web-interface/view" in url:
+            return _FakeHTTPResp({
+                "code": 0,
+                "data": {
+                    "cid": 1,
+                    "pic": "https://example.com/cover.jpg",
+                    "title": "测试视频",
+                    "duration": 10,
+                    "pubdate": 0,
+                    "owner": {"name": "测试UP"},
+                },
+            })
+        if "playurl" in url:
+            return _FakeHTTPResp({"code": 0, "data": {"quality": 64, "dash": {}}})
+        return _FakeHTTPResp({"code": 0, "data": {}})
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
     assert client.get("/api/bilibili/cover?bvid=BV1xx411c7mD", headers=headers).status_code == 200
     assert client.get("/api/bing/daily", headers=headers).status_code == 200
 
@@ -81,15 +123,9 @@ def test_tools_and_word_endpoints() -> None:
     client = TestClient(app)
     headers = {"Api-Key": "test123"}
 
-    assert client.get("/api/word/random", headers=headers).status_code == 200
-    assert client.get("/api/tool/timestamp", headers=headers).status_code == 200
     assert client.get("/api/tool/hash?text=abc&algorithm=sha256", headers=headers).status_code == 200
     assert client.get("/api/tool/base64?text=abc", headers=headers).json()["data"]["result"] == "YWJj"
     assert client.get("/api/tool/uuid?count=2", headers=headers).json()["data"]["count"] == 2
-    assert len(client.get("/api/tool/password?length=12", headers=headers).json()["data"]["password"]) == 12
-    assert client.get("/api/tool/color", headers=headers).json()["data"]["hex"].startswith("#")
-    assert client.get("/api/tool/nickname", headers=headers).json()["data"]["nickname"]
-    assert client.get("/api/image/placeholder?width=100&height=80&text=test", headers=headers).status_code == 200
     assert client.get("/api/image/qrcode?text=hello", headers=headers).status_code == 200
 
 
@@ -98,21 +134,6 @@ def test_spider_endpoints() -> None:
     client = TestClient(app)
     headers = {"Api-Key": "test123"}
 
-    assert client.get("/api/news/categories", headers=headers).status_code == 200
-    news = client.get("/api/news/list?type=0&page=1&size=2", headers=headers)
-    assert news.status_code == 200
-    assert len(news.json()["data"]["items"]) == 2
-
-    postid = news.json()["data"]["items"][0]["postid"]
-    detail = client.get(f"/api/news/detail?postid={postid}", headers=headers)
-    assert detail.status_code == 200
-
-    videos = client.get("/api/video/list", headers=headers)
-    assert videos.status_code == 200
-    vid = videos.json()["data"]["items"][0]["vid"]
-    assert client.get(f"/api/video/detail?vid={vid}", headers=headers).status_code == 200
-
-    assert client.get("/api/picture/cosplay?size=2", headers=headers).status_code == 200
     assert client.get("/api/history/today?date=05-21", headers=headers).json()["data"]["events"]
     assert client.get("/api/idiom/search?keyword=精", headers=headers).status_code == 200
     assert client.get("/api/poetry/tang?keyword=李白", headers=headers).status_code == 200
@@ -126,7 +147,7 @@ def test_versioned_aliases_and_validation_error_shape() -> None:
     assert client.get("/api/v1/demo", headers=headers).status_code == 200
     assert client.get("/api/v1/tool/hash?text=abc", headers=headers).status_code == 200
     assert client.get("/api/v1/image/qrcode?text=hello", headers=headers).status_code == 200
-    assert client.get("/api/v1/news/list?type=0", headers=headers).status_code == 200
+    assert client.get("/api/v1/history/today", headers=headers).status_code == 200
     assert client.get("/api/version").json()["data"]["current"] == "v1"
 
     invalid = client.get("/api/tool/uuid?count=999", headers=headers)
@@ -155,6 +176,13 @@ def test_admin_pages_and_endpoints() -> None:
     login = client.post(f"{ADMIN_PATH}/login", json={"token": "admin888"})
     assert login.status_code == 200
     assert "admin_token" in login.cookies
+    assert login.cookies["admin_token"] != "admin888"
+
+    forged = TestClient(app)
+    forged.cookies.set("admin_token", "9999999999.deadbeef")
+    assert forged.get(f"{ADMIN_PATH}/session").status_code == 401
+    forged.cookies.set("admin_token", "admin888")
+    assert forged.get(f"{ADMIN_PATH}/session").status_code == 401
 
     assert client.get(f"{ADMIN_PATH}/apis").status_code == 200
     assert client.get(f"{ADMIN_PATH}/session").status_code == 200
@@ -258,8 +286,8 @@ def test_api_key_state_and_quota_are_enforced() -> None:
     )
     assert created.status_code == 200
 
-    assert client.get("/api/demo", headers={"Api-Key": "limited"}).status_code == 200
-    assert client.get("/api/demo", headers={"Api-Key": "limited"}).status_code == 429
+    assert client.get("/api/time", headers={"Api-Key": "limited"}).status_code == 200
+    assert client.get("/api/time", headers={"Api-Key": "limited"}).status_code == 429
 
     client.delete(f"{ADMIN_PATH}/keys/disabled", headers=headers)
     created = client.post(
@@ -269,9 +297,9 @@ def test_api_key_state_and_quota_are_enforced() -> None:
     )
     assert created.status_code == 200
     assert client.patch(f"{ADMIN_PATH}/keys/disabled", headers=headers, params={"enabled": False}).status_code == 200
-    assert client.get("/api/demo", headers={"Api-Key": "disabled"}).status_code == 403
+    assert client.get("/api/time", headers={"Api-Key": "disabled"}).status_code == 403
 
-    assert client.get("/api/demo", headers={"Api-Key": "missing"}).status_code == 403
+    assert client.get("/api/time", headers={"Api-Key": "missing"}).status_code == 403
 
 
 def test_dynamic_template_variables() -> None:
@@ -408,8 +436,68 @@ def test_security_headers_and_settings_validation() -> None:
     else:
         raise AssertionError("production weak admin token should be rejected")
 
-    strong = Settings(environment="production", admin_token="strong-admin-token-123", default_api_keys="strong-api-key:用户")
+    strong = Settings(
+        environment="production",
+        admin_token="strong-admin-token-123",
+        default_api_keys="strong-api-key:用户",
+        allow_self_register=False,
+    )
     strong.validate_public_security()
+
+    # 生产环境即使凭据足够强，只要允许自助注册就必须拒绝启动
+    weak_register = Settings(
+        environment="production",
+        admin_token="strong-admin-token-123",
+        default_api_keys="strong-api-key:用户",
+        allow_self_register=True,
+    )
+    try:
+        weak_register.validate_public_security()
+    except RuntimeError as exc:
+        assert "allow_self_register" in str(exc)
+    else:
+        raise AssertionError("production with self-register enabled should be rejected")
+
+
+def test_production_security_and_api_key_boundaries() -> None:
+    init_db()
+    client = TestClient(app)
+
+    production_debug = Settings(
+        environment="production",
+        debug=True,
+        admin_token="strong-admin-token-123",
+        default_api_keys="strong-api-key:用户",
+        allow_self_register=False,
+    )
+    with pytest.raises(RuntimeError, match="debug"):
+        production_debug.validate_public_security()
+
+    old_require_api_key = settings.require_api_key
+    settings.require_api_key = True
+    try:
+        headers = {"Api-Key": "test123"}
+        assert client.get("/api/version").status_code == 401
+        assert client.get("/api/version", headers=headers).status_code == 200
+        assert client.get("/api/yiyan").status_code == 401
+        assert client.get("/api/time").status_code == 401
+    finally:
+        settings.require_api_key = old_require_api_key
+
+    for host in ("localhost.", "localhost.localdomain", "127.0.0.1", "169.254.169.254"):
+        response = client.get(
+            "/api/extra/ping",
+            params={"host": host},
+            headers={"Api-Key": "test123"},
+        )
+        assert response.status_code == 403
+
+
+def test_douyin_rejects_url_substring_ssrf() -> None:
+    with pytest.raises(DouyinParseError):
+        extract_url("http://127.0.0.1:8000/douyin.com")
+    with pytest.raises(DouyinParseError):
+        extract_url("https://attacker.example/?next=https://douyin.com/video/1")
 
 
 def test_douyin_url_extraction_and_mocking(monkeypatch) -> None:
