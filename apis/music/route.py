@@ -21,14 +21,18 @@ PROXY = os.getenv("HTTP_PROXY", os.getenv("HTTPS_PROXY", ""))
 
 
 def _client(headers: dict) -> httpx.AsyncClient:
-    kwargs = {"timeout": 15, "verify": False, "headers": headers}
+    kwargs = {
+        "timeout": 15,
+        "verify": not (settings.debug and not settings.is_production),
+        "headers": headers,
+    }
     if PROXY:
         kwargs["proxy"] = PROXY
     return httpx.AsyncClient(**kwargs)
 
 
 @router.get("/qq/search", name="qq_music_search")
-async def qq_music_search(keyword: str = Query(..., description="歌曲名或歌手"), limit: int = Query(10, description="返回数量")):
+async def qq_music_search(keyword: str = Query(..., description="歌曲名或歌手"), limit: int = Query(10, ge=1, le=30, description="返回数量")):
     """搜索QQ音乐，返回歌曲信息和播放地址。"""
     try:
         async with _client({"User-Agent": UA, "Referer": "https://y.qq.com"}) as client:
@@ -48,28 +52,35 @@ async def qq_music_search(keyword: str = Query(..., description="歌曲名或歌
             if not songs:
                 raise HTTPException(status_code=404, detail="未找到歌曲")
 
-            result = []
-            for song in songs[:limit]:
-                songmid = song.get("songmid", "")
-                songname = song.get("songname", "")
-                singer = song.get("singer", [{}])[0].get("name", "") if song.get("singer") else ""
-                album = song.get("albumname", "")
-
+            songs = songs[:limit]
+            songmids = [song.get("songmid", "") for song in songs]
+            purls: dict[str, str] = {}
+            if any(songmids):
+                # 一次请求取回全部歌曲的 vkey
                 vkey_url = "https://u.y.qq.com/cgi-bin/musicu.fcg"
                 vkey_params = {
                     "data": json.dumps({
                         "req": {"module": "CDN.SrfCdnDispatchServer", "method": "GetCdnDispatch",
                                 "param": {"guid": "3982823384", "calltype": 0, "userip": ""}},
                         "req_0": {"module": "vkey.GetVkeyServer", "method": "CgiGetVkey",
-                                  "param": {"guid": "3982823384", "songmid": [songmid], "songtype": [0],
+                                  "param": {"guid": "3982823384", "songmid": songmids,
+                                            "songtype": [0] * len(songmids),
                                             "uin": "0", "loginflag": 1, "platform": "20"}},
                         "comm": {"uin": 0, "format": "json", "ct": 24, "cv": 0},
                     })
                 }
                 vkey_resp = await client.get(vkey_url, params=vkey_params)
                 vkey_data = vkey_resp.json()
+                for info in vkey_data.get("req_0", {}).get("data", {}).get("midurlinfo", []) or []:
+                    if info.get("songmid"):
+                        purls[info["songmid"]] = info.get("purl", "")
 
-                purl = vkey_data.get("req_0", {}).get("data", {}).get("midurlinfo", [{}])[0].get("purl", "")
+            result = []
+            for song, songmid in zip(songs, songmids):
+                songname = song.get("songname", "")
+                singer = song.get("singer", [{}])[0].get("name", "") if song.get("singer") else ""
+                album = song.get("albumname", "")
+                purl = purls.get(songmid, "")
                 play_url = f"https://isure.stream.qqmusic.qq.com/{purl}" if purl else ""
 
                 result.append({
@@ -89,7 +100,7 @@ async def qq_music_search(keyword: str = Query(..., description="歌曲名或歌
 
 
 @router.get("/kugou/search", name="kugou_music_search")
-async def kugou_music_search(keyword: str = Query(..., description="歌曲名或歌手"), limit: int = Query(10, description="返回数量")):
+async def kugou_music_search(keyword: str = Query(..., description="歌曲名或歌手"), limit: int = Query(10, ge=1, le=30, description="返回数量")):
     """搜索酷狗音乐，返回歌曲信息和播放地址。"""
     try:
         async with _client({"User-Agent": UA, "Referer": "https://www.kugou.com"}) as client:

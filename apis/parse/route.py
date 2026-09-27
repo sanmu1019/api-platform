@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse
 
 from core.depends import verify_api_key
 from .video_parser.parser import parse_video_share_url, VideoInfo
@@ -37,7 +36,7 @@ async def video_parse(url: str = Query(..., description="短视频分享链接�
     except ValueError as e:
         # 参数非法 / SSRF 拦截 / 无法解析，归为客户端错误
         logger.warning("视频解析被拒绝: %s", e)
-        return JSONResponse(status_code=400, content={"code": 400, "msg": str(e), "data": None})
-    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
         logger.exception("视频解析失败")
-        return JSONResponse(status_code=500, content={"code": 500, "msg": str(e), "data": None})
+        raise HTTPException(status_code=500, detail="视频解析失败，请稍后重试")

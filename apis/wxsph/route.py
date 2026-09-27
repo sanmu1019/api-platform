@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core.config import settings
 from core.depends import verify_api_key
+from core.ttlcache import TTLCache
 
 router = APIRouter(prefix="/api", tags=["wxsph"], dependencies=[Depends(verify_api_key)])
 
@@ -21,9 +22,9 @@ UA = (
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 )
 
-# 缓存: share_url -> (expires_at, payload)
-_cache: dict[str, tuple[float, dict]] = {}
+# 缓存: share_url -> payload
 CACHE_TTL = 600
+_cache = TTLCache(maxsize=256, ttl=CACHE_TTL)
 
 
 def _get_cookie() -> str:
@@ -118,11 +119,9 @@ def wxsph_parse(url: str = Query(..., description="视频号分享链接（https
         raise HTTPException(status_code=400, detail="只支持 https://weixin.qq.com/sph/... 格式的分享链接")
 
     # 缓存
-    now = time.time()
-    if share_url in _cache:
-        exp, payload = _cache[share_url]
-        if exp > now:
-            return payload
+    cached = _cache.get(share_url)
+    if cached is not None:
+        return cached
 
     cookie = _get_cookie()
     parse_data = _parse_share_url(share_url, cookie)
@@ -158,5 +157,5 @@ def wxsph_parse(url: str = Query(..., description="视频号分享链接（https
             "source": "wechat_channels",
         },
     }
-    _cache[share_url] = (now + CACHE_TTL, result)
+    _cache.set(share_url, result)
     return result

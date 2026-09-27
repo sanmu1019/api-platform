@@ -7,9 +7,14 @@
 - [ ] 轮换测试报告中出现过的 Api-Key，以及 `config.json` / `config.production.json` 中的 admin_token、默认 Key、视频号与小红书 Cookie
 - [ ] 默认口令 `admin888` / 默认 Key `test123` 仅限开发使用，上线前必须修改
 
-## 代码
+## 功能
 
-- [ ] 统一响应格式：成功响应的结构仍不统一（如 music 多一个顶层 `total` 字段），错误响应已统一为「HTTP 状态码 + `{code, msg}`」
+- [ ] **QQ 音乐搜索的 `play_url` 始终为空**：上游 vkey 接口不再给匿名请求下发播放地址（改动前即如此）。需要登录 Cookie，或在文档中注明只返回搜索结果
+
+## 代码质量
+
+- [ ] **成功响应格式不统一**：如 music 多一个顶层 `total` 字段；错误响应已统一为「HTTP 状态码 + `{code, msg}`」
+- [ ] **测试覆盖仍有缺口**：domain、divination、wxsph、parse 正常路径、tools2 其余接口暂无用例
 
 ## 文档
 

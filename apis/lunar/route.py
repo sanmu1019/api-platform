@@ -24,6 +24,7 @@ def _safe(fn, default=None):
     try:
         return fn()
     except Exception:
+        logger.debug("农历字段计算失败", exc_info=True)
         return default
 
 

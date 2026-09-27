@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import time
 from typing import Any
 
 import requests
@@ -11,14 +10,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core.config import settings
 from core.depends import verify_api_key
+from core.ttlcache import TTLCache
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/hot", tags=["hot"], dependencies=[Depends(verify_api_key)])
 
-# 简单内存缓存：{platform: (expire_ts, data)}
-_cache: dict[str, tuple[float, Any]] = {}
 CACHE_TTL = 300  # 5 分钟
+# 内存缓存：platform -> data（键为固定平台名）
+_cache = TTLCache(maxsize=32, ttl=CACHE_TTL)
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
@@ -33,22 +33,24 @@ def _proxies() -> dict[str, str] | None:
     return None
 
 
-def _cached(key: str, fetcher):
-    now = time.time()
-    if key in _cache:
-        expire, data = _cache[key]
-        if now < expire:
-            return data
+def _cached(key: str, fetcher) -> tuple[Any, bool]:
+    """返回 (data, hit)；hit 表示数据来自缓存（含上游失败时的旧缓存兜底）。"""
+    data = _cache.get(key)
+    if data is not None:
+        return data, True
     try:
         data = fetcher()
-        _cache[key] = (now + CACHE_TTL, data)
-        return data
-    except Exception as e:
-        logger.warning("热榜 %s 抓取失败: %s", key, e)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("热榜 %s 抓取失败", key)
         # 失败时如果有旧缓存就用旧的
-        if key in _cache:
-            return _cache[key][1]
-        raise HTTPException(status_code=502, detail=f"{key} 热榜抓取失败: {e}")
+        stale = _cache.get(key, allow_stale=True)
+        if stale is not None:
+            return stale, True
+        raise HTTPException(status_code=502, detail=f"{key} 热榜抓取失败")
+    _cache.set(key, data)
+    return data, False
 
 
 def _fetch_weibo() -> list[dict]:
@@ -177,7 +179,7 @@ def hot_list(
             detail=f"不支持的平台: {platform}，可选: {', '.join(PLATFORMS.keys())}",
         )
     name, fetcher = PLATFORMS[platform]
-    items = _cached(platform, fetcher)
+    items, hit = _cached(platform, fetcher)
     return {
         "code": 200,
         "msg": "success",
@@ -186,6 +188,6 @@ def hot_list(
             "name": name,
             "count": len(items[:limit]),
             "items": items[:limit],
-            "cached": True,
+            "cached": hit,
         },
     }

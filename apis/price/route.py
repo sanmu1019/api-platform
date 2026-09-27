@@ -76,11 +76,13 @@ def _fetch_quotes(symbols: list[str]) -> dict[str, dict]:
                 result[quote["name"]] = quote
         _cache[cache_key] = (now + CACHE_TTL, result)
         return result
-    except Exception as e:
-        logger.warning("行情获取失败: %s", e)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("行情获取失败")
         if cache_key in _cache:
             return _cache[cache_key][1]
-        raise HTTPException(status_code=502, detail=f"行情获取失败: {e}")
+        raise HTTPException(status_code=502, detail="行情获取失败")
 
 
 @router.get("/gold", name="price_gold")
@@ -91,6 +93,7 @@ def price_gold() -> dict:
     quote = quotes.get(name)
     if not quote:
         raise HTTPException(status_code=502, detail="黄金行情获取失败")
+    quote = dict(quote)
     quote["unit"] = SYMBOLS["gold"][2]
     return {"code": 200, "msg": "success", "data": quote, "source": "腾讯财经"}
 
@@ -103,6 +106,7 @@ def price_silver() -> dict:
     quote = quotes.get(name)
     if not quote:
         raise HTTPException(status_code=502, detail="白银行情获取失败")
+    quote = dict(quote)
     quote["unit"] = SYMBOLS["silver"][2]
     return {"code": 200, "msg": "success", "data": quote, "source": "腾讯财经"}
 
@@ -115,5 +119,6 @@ def price_oil() -> dict:
     quote = quotes.get(name)
     if not quote:
         raise HTTPException(status_code=502, detail="原油行情获取失败")
+    quote = dict(quote)
     quote["unit"] = SYMBOLS["oil"][2]
     return {"code": 200, "msg": "success", "data": quote, "source": "腾讯财经"}

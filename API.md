@@ -467,6 +467,8 @@ GET /api/bilibili/proxy?bvid=BV1GJ411x7h7&type=mp4
 
 服务端带上 `Referer: https://www.bilibili.com/` 拉取 B 站视频流并**流式转发**，浏览器 `<video>` 可直接播放。返回视频二进制（`Content-Type: video/mp4`），不是 JSON。
 
+支持拖动进度：请求里的 `Range` 头会转发给上游，上游返回 `206` 时原样透传 `Content-Range` / `Content-Length`。主地址连不上时自动尝试备用地址。
+
 **查询参数：**
 
 | 参数 | 类型 | 必填 | 默认 | 说明 |
@@ -474,7 +476,7 @@ GET /api/bilibili/proxy?bvid=BV1GJ411x7h7&type=mp4
 | bvid | string | 是 | — | BV 号，格式 `BV[0-9A-Za-z]{8,20}` |
 | type | string | 否 | mp4 | `mp4`（durl 直链）/ `dash`（取第一条视频轨，无音轨） |
 
-**错误：** BV 号格式错误 `400`；视频不存在 `404`；获取视频信息 / 播放地址失败 `502`。
+**错误：** BV 号格式错误 `400`；`type` 不是 mp4/dash `422`；视频不存在 `404`；获取视频信息 / 播放地址失败 `502`。
 
 ---
 
@@ -664,14 +666,16 @@ GET /api/exchange/rate?from=USD&to=CNY&date=2026-09-18
 
 | 参数 | 类型 | 必填 | 默认 | 说明 |
 |------|------|------|------|------|
-| from | string | 否 | USD | 源货币代码（3位大写） |
-| to | string | 否 | CNY | 目标货币代码（3位大写） |
+| from | string | 否 | USD | 源货币代码（3 位字母，格式不对返回 `422`） |
+| to | string | 否 | CNY | 目标货币代码（3 位字母，格式不对返回 `422`） |
 | date | string | 否 | 最新 | 历史日期 YYYY-MM-DD |
 
 **响应示例：**
 ```json
 {"code": 200, "msg": "success", "data": {"from": "USD", "to": "CNY", "rate": 7.18, "date": "2026-09-17", "amount": 1}}
 ```
+
+**错误：** 不支持的货币 `400`；上游失败 `502`。
 
 ---
 
@@ -719,6 +723,8 @@ GET /api/weather/current?city=北京
 {"code": 200, "msg": "success", "data": {"city": "北京", "region": "Beijing", "country": "中国", "latitude": 39.9, "longitude": 116.4, "timezone": "Asia/Shanghai", "temperature": 21.3, "apparent_temperature": 20.1, "humidity": 45, "weather": "晴", "weather_code": 0, "wind_speed": 8.6, "wind_direction": 180, "pressure": 1012.4, "time": "2026-09-18T08:00", "units": {"temperature": "°C", "humidity": "%", "wind_speed": "km/h", "pressure": "hPa"}}}
 ```
 
+**错误：** 城市不存在 `404`；上游失败 `502`。
+
 ---
 
 ## 节假日服务
@@ -741,6 +747,8 @@ GET /api/holiday/check?date=2026-10-01
 ```json
 {"code": 200, "msg": "success", "data": {"date": "2026-10-01", "weekday": "Thursday", "is_workday": false, "is_holiday": true, "is_in_lieu": false, "holiday_name": "National Day"}}
 ```
+
+**错误：** 日期格式错误或年份超出库支持范围 `400`。
 
 ---
 
@@ -892,7 +900,7 @@ GET /api/extra/pinyin?text=你好
 GET /api/extra/number/upper?number=1234.56
 ```
 
-人民币金额小写转大写。
+人民币金额小写转大写，按四舍五入保留到分。支持 `0 ≤ number < 1e16`。
 
 **查询参数：**
 
@@ -905,7 +913,7 @@ GET /api/extra/number/upper?number=1234.56
 {"code": 200, "msg": "success", "data": {"number": "1234.56", "upper": "壹仟贰佰叁拾肆元伍角陆分"}}
 ```
 
-**错误：** 非数字时返回 HTTP 400，body 为 `{"code": 400, "msg": "无效数字"}`。
+**错误：** 非数字、负数、`nan` / `inf`、超出范围时返回 HTTP 400。
 
 ---
 
@@ -981,7 +989,7 @@ GET /api/extra/ping?host=baidu.com
 GET /api/tools2/carplate?code=京A
 ```
 
-按车牌首字（省份简称）返回省份。
+仅识别省份：按车牌首字（省份简称）返回省份，不识别地市字母。
 
 **查询参数：**
 
@@ -994,7 +1002,7 @@ GET /api/tools2/carplate?code=京A
 {"code": 200, "msg": "success", "data": {"code": "京A", "province": "北京"}}
 ```
 
-**错误：** 未知车牌 `404`。
+**错误：** 空输入 `400`；未知车牌 `404`。
 
 ---
 
@@ -1077,6 +1085,8 @@ GET /api/tools2/earthquake?limit=10
 
 ### QQ 音乐搜索
 
+> 注：上游已不对匿名请求下发播放地址，`play_url` 目前总是空字符串。
+
 ```
 GET /api/music/qq/search?keyword=晴天&limit=10
 ```
@@ -1086,7 +1096,7 @@ GET /api/music/qq/search?keyword=晴天&limit=10
 | 参数 | 类型 | 必填 | 默认 | 说明 |
 |------|------|------|------|------|
 | keyword | string | 是 | — | 歌曲名或歌手 |
-| limit | int | 否 | 10 | 返回数量 |
+| limit | int | 否 | 10 | 返回数量，1-30 |
 
 **响应示例：**
 ```json

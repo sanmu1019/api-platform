@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import logging
-import time
-from typing import Any
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core.depends import verify_api_key
+from core.ttlcache import TTLCache
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +17,7 @@ GEO_URL = "https://geocoding-api.open-meteo.com/v1/search"
 TIMEOUT = 10
 CACHE_TTL = 600  # 天气缓存 10 分钟
 
-_cache: dict[str, tuple[float, Any]] = {}
+_cache = TTLCache(maxsize=512, ttl=CACHE_TTL)
 
 # WMO 天气代码映射
 WEATHER_CODES = {
@@ -36,20 +35,21 @@ WEATHER_CODES = {
 
 
 def _cached(key: str, fetcher):
-    now = time.time()
-    if key in _cache:
-        expire, data = _cache[key]
-        if now < expire:
-            return data
+    data = _cache.get(key)
+    if data is not None:
+        return data
     try:
         data = fetcher()
-        _cache[key] = (now + CACHE_TTL, data)
-        return data
-    except Exception as e:
-        logger.warning("天气 %s 获取失败: %s", key, e)
-        if key in _cache:
-            return _cache[key][1]
-        raise HTTPException(status_code=502, detail=f"天气获取失败: {e}")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("天气 %s 获取失败", key)
+        stale = _cache.get(key, allow_stale=True)
+        if stale is not None:
+            return stale
+        raise HTTPException(status_code=502, detail="天气获取失败")
+    _cache.set(key, data)
+    return data
 
 
 def _weather_desc(code: int) -> str:

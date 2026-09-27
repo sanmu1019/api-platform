@@ -28,8 +28,9 @@ CAR_PLATE = {
 
 
 @router.get("/carplate", name="carplate_query")
-def carplate_query(code: str = Query(..., description="车牌第一个字，如 京A")):
-    """根据车牌查询归属地。"""
+def carplate_query(code: str = Query(..., description="车牌号（仅识别省份简称），如 京A")):
+    """根据车牌首字查询归属省份（仅识别省份）。"""
+    code = code.strip()
     if not code:
         raise HTTPException(status_code=400, detail="请输入车牌")
     first_char = code[0].upper()
@@ -90,10 +91,10 @@ def food_recommend():
 @router.get("/luck", name="luck_score")
 def luck_score(name: str = Query(..., description="你的名字")):
     """今日人品评分。"""
-    random.seed(name + str(__import__("datetime").date.today()))
-    score = random.randint(0, 100)
+    rng = random.Random(name + str(__import__("datetime").date.today()))
+    score = rng.randint(0, 100)
     tags = ["大吉", "中吉", "小吉", "平", "小凶", "中凶", "大凶"]
-    tag = random.choice(tags)
+    tag = rng.choice(tags)
     return {
         "code": 200,
         "msg": "success",

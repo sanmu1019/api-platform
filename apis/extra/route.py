@@ -1014,10 +1014,16 @@ def text_to_pinyin(text: str = Query(..., description="要转换的汉字")):
 @router.get("/number/upper", name="number_to_upper")
 def number_to_upper(number: str = Query(..., description="数字，如 1234.56")):
     """人民币金额小写转大写。"""
+    from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
     try:
-        n = float(number)
-    except ValueError:
+        n = Decimal(number.strip())
+    except (InvalidOperation, ValueError):
         raise HTTPException(status_code=400, detail="无效数字")
+    if not n.is_finite() or n < 0:
+        raise HTTPException(status_code=400, detail="仅支持非负有限数字")
+    n = n.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if n >= Decimal("1e16"):
+        raise HTTPException(status_code=400, detail="数字过大")
 
     digits = "零壹贰叁肆伍陆柒捌玖"
     units = ["", "拾", "佰", "仟"]
@@ -1036,7 +1042,7 @@ def number_to_upper(number: str = Query(..., description="数字，如 1234.56")
                 for i in range(4):
                     d = group % 10
                     if d == 0:
-                        zero_flag = True
+                        zero_flag = bool(g)
                     else:
                         if zero_flag:
                             g = "零" + g
@@ -1049,7 +1055,7 @@ def number_to_upper(number: str = Query(..., description="数字，如 1234.56")
         return result
 
     int_part = int(n)
-    dec_part = round((n - int_part) * 100)
+    dec_part = int((n - int_part) * 100)
     jiao = dec_part // 10
     fen = dec_part % 10
 
@@ -1059,6 +1065,8 @@ def number_to_upper(number: str = Query(..., description="数字，如 1234.56")
     else:
         if jiao > 0:
             result += digits[jiao] + "角"
+        elif int_part > 0:
+            result += "零"
         if fen > 0:
             result += digits[fen] + "分"
 
@@ -1096,18 +1104,29 @@ def ping_check(host: str = Query(..., description="域名或IP，如 baidu.com")
         status = 400 if ("无法解析" in reason or "为空" in reason) else 403
         raise HTTPException(status_code=status, detail=reason)
 
-    results = []
-    for port in (80, 443):
-        reachable = False
+    import concurrent.futures
+
+    addresses = list(addresses)[:2]
+
+    def _probe(port: int) -> dict:
         for address in addresses:
             try:
-                sock = socket.create_connection((address, port), timeout=3)
+                sock = socket.create_connection((address, port), timeout=2)
                 sock.close()
-                reachable = True
-                break
+                return {"port": port, "reachable": True}
             except Exception:
                 continue
-        results.append({"port": port, "reachable": reachable})
+        return {"port": port, "reachable": False}
+
+    ports = (80, 443)
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=len(ports))
+    futures = {port: pool.submit(_probe, port) for port in ports}
+    concurrent.futures.wait(futures.values(), timeout=5)
+    pool.shutdown(wait=False, cancel_futures=True)
+    results = []
+    for port in ports:
+        fut = futures[port]
+        results.append(fut.result() if fut.done() and not fut.cancelled() else {"port": port, "reachable": False})
     reachable = any(r["reachable"] for r in results)
     return {
         "code": 200,

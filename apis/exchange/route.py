@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import logging
-import time
-from typing import Any
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core.depends import verify_api_key
+from core.ttlcache import TTLCache
 
 logger = logging.getLogger(__name__)
 
@@ -17,30 +16,31 @@ BASE_URL = "https://api.frankfurter.app"
 TIMEOUT = 10
 CACHE_TTL = 3600  # 汇率缓存 1 小时
 
-_cache: dict[str, tuple[float, Any]] = {}
+_cache = TTLCache(maxsize=512, ttl=CACHE_TTL)
 
 
 def _cached(key: str, fetcher):
-    now = time.time()
-    if key in _cache:
-        expire, data = _cache[key]
-        if now < expire:
-            return data
+    data = _cache.get(key)
+    if data is not None:
+        return data
     try:
         data = fetcher()
-        _cache[key] = (now + CACHE_TTL, data)
-        return data
-    except Exception as e:
-        logger.warning("汇率 %s 获取失败: %s", key, e)
-        if key in _cache:
-            return _cache[key][1]
-        raise HTTPException(status_code=502, detail=f"汇率获取失败: {e}")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("汇率 %s 获取失败", key)
+        stale = _cache.get(key, allow_stale=True)
+        if stale is not None:
+            return stale
+        raise HTTPException(status_code=502, detail="汇率获取失败")
+    _cache.set(key, data)
+    return data
 
 
 @router.get("/rate", name="exchange_rate")
 def exchange_rate(
-    from_currency: str = Query("USD", alias="from", min_length=3, max_length=3),
-    to: str = Query("CNY", min_length=3, max_length=3),
+    from_currency: str = Query("USD", alias="from", pattern="^[A-Za-z]{3}$"),
+    to: str = Query("CNY", pattern="^[A-Za-z]{3}$"),
     date: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
 ) -> dict:
     """查询汇率。
@@ -61,14 +61,16 @@ def exchange_rate(
         return resp.json()
 
     data = _cached(cache_key, fetch)
-    rates = data.get("rates", {})
+    rate = data.get("rates", {}).get(to_upper)
+    if rate is None:
+        raise HTTPException(status_code=400, detail=f"不支持的货币: {to_upper}")
     return {
         "code": 200,
         "msg": "success",
         "data": {
             "from": frm,
             "to": to_upper,
-            "rate": rates.get(to_upper),
+            "rate": rate,
             "date": data.get("date"),
             "amount": data.get("amount", 1),
         },
@@ -78,8 +80,8 @@ def exchange_rate(
 
 @router.get("/convert", name="exchange_convert")
 def exchange_convert(
-    from_currency: str = Query("USD", alias="from", min_length=3, max_length=3),
-    to: str = Query("CNY", min_length=3, max_length=3),
+    from_currency: str = Query("USD", alias="from", pattern="^[A-Za-z]{3}$"),
+    to: str = Query("CNY", pattern="^[A-Za-z]{3}$"),
     amount: float = Query(1.0, gt=0),
 ) -> dict:
     """货币转换。

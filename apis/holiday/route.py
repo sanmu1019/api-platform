@@ -27,10 +27,14 @@ def holiday_check(date_str: str = Query(..., alias="date", pattern=r"^\d{4}-\d{2
     date: 日期 YYYY-MM-DD
     """
     d = _parse_date(date_str)
-    is_workday = cn_calendar.is_workday(d)
-    is_holiday = cn_calendar.is_holiday(d)
-    is_in_lieu = cn_calendar.is_in_lieu(d)
-    holiday_detail = cn_calendar.get_holiday_detail(d)
+    try:
+        is_workday = cn_calendar.is_workday(d)
+        is_holiday = cn_calendar.is_holiday(d)
+        is_in_lieu = cn_calendar.is_in_lieu(d)
+        holiday_detail = cn_calendar.get_holiday_detail(d)
+    except NotImplementedError:
+        years = sorted({k.year for k in cn_calendar.holidays} | {k.year for k in cn_calendar.workdays})
+        raise HTTPException(status_code=400, detail=f"仅支持 {years[0]}-{years[-1]} 年的节假日数据")
 
     return {
         "code": 200,
