@@ -1,16 +1,16 @@
 # 绿夜API
 
-基于 `FastAPI + SQLite` 的轻量 API 聚合门户，内置 44 个公开接口、前端文档页、后台管理和动态自定义接口。
+基于 `FastAPI + SQLite` 的轻量 API 聚合门户，内置 50+ 个公开接口、前端文档页、后台管理和动态自定义接口。
 
 ## 功能特性
 
-- 44 个内置公开接口（抖音解析、多平台热榜、音乐搜索、IP 查询、时间戳、汇率、天气、节假日、万年历、金价油价、段子、歇后语、周公解梦等）
+- 50+ 个内置公开接口（抖音 / 视频号 / 多平台视频解析、多平台热榜、音乐搜索、IP 查询、时间戳、汇率、天气、节假日、万年历、金价油价、段子、歇后语、周公解梦、拼音、金额大写等），完整说明见 [API.md](API.md)
 - 纯前端接口测试台（`/test`），浏览器内直接调参试调
 - 自动生成的接口文档页（`/doc/{name}.html`）
 - 后台管理：接口 CRUD、启用/停用、Api-Key 管理、调用统计、访问日志导出、数据库备份
 - 动态自定义接口：后台登记后自动挂载，支持 JSON/Text/HTML 响应模板
 - SQLite 持久化，零外部依赖
-- 限流、IP 白名单、弱口令校验、安全响应头、CSV 公式注入防护
+- 限流、IP 白名单、弱口令校验、安全响应头、CSV 公式注入防护、出站请求 SSRF 校验、后台签名会话 Cookie
 
 ## 目录结构
 
@@ -32,25 +32,33 @@ apis/
 ├── phone/               手机号归属地
 ├── hot/                 多平台热榜（微博/百度/GitHub/B站）
 ├── exchange/            汇率转换（Frankfurter / 欧洲央行）
-├── weather/             实时天气与预报（Open-Meteo）
+├── extra/               文案、拼音、金额大写、简繁转换、解梦、ping（/api/extra）
+├── extra2/             车牌、答案之书、今天吃什么、今日人品、地震（/api/tools2）
+├── weather/             实时天气（Open-Meteo）
 ├── holiday/             中国节假日与调休查询
 ├── lunar/               万年历/老黄历（农历/干支/宜忌/星宿）
 ├── price/               黄金/白银/原油行情（腾讯财经）
 ├── joke/                随机段子（内置数据集）
-├── music/              音乐搜索（QQ音乐/酷狗）
+├── music/               音乐搜索（QQ 音乐 / 酷狗）
+├── parse/               多平台视频解析（/api/parse/video）
 ├── spider/              历史上今天/成语/唐诗离线数据
 ├── time/                时间接口
-├── tools/               工具类（哈希、Base64、UUID、密码、颜色、昵称等）
-└── word/                随机短句 / 一言
+├── tools/               工具类（哈希、Base64、UUID、二维码）
+├── word/                随机短句 / 一言
+└── wxsph/               微信视频号解析
 core/                    配置、数据库、中间件、鉴权依赖、异常处理、路由索引
 frontend/                前端页面（首页、文档、测试台、后台、注册）
 static/                  后台静态资源
 tests/                   pytest 测试套件
+docs/                    参考资料（API_SOURCES.md：接口来源调研，均未实现）
 scripts/                 冒烟测试、数据修复、清理脚本
 tools/                   数据集构建工具
 deploy/                  systemd service、Nginx 配置示例
 .github/workflows/       CI 配置
 config.json.example      配置模板
+API.md                   接口文档
+CURL_TESTS.md            curl 调试示例
+TODO.md                  待办事项
 ```
 
 ## 快速启动
@@ -92,6 +100,8 @@ Admin-Token: admin888
 Api-Key: test123
 ```
 
+> 测试用例固定使用这组凭据（见 `tests/conftest.py`），与本地 `config.json` 无关。
+>
 > 服务一旦监听非回环地址（如 `0.0.0.0`），启动日志会打印安全告警；
 > `environment` 为 `production` 时则直接拒绝启动。
 
@@ -123,13 +133,18 @@ Api-Key: test123
 | `admin_token` | `admin888` | 后台登录口令，生产必须替换 |
 | `default_api_keys` | `test123:测试用户` | 初始 Api-Key，生产必须替换 |
 | `require_api_key` | `false` | 设为 `true` 则所有接口必须传 Api-Key |
-| `allow_self_register` | `true` | 是否允许公开自助注册 Key |
+| `allow_self_register` | `false` | 是否允许公开自助注册 Key，生产环境开启会拒绝启动 |
 | `admin_ip_allowlist` | 空 | 逗号分隔的 IP，仅允许这些 IP 访问后台 |
 | `admin_public_path` | `/manage-api` | 后台路径，可改冷门路径减少扫描 |
 | `rate_limit_per_minute` | `120` | 单 IP 每分钟请求上限，0 为不限 |
 | `enable_douyin` | `true` | 是否启用抖音解析接口 |
 | `douyin_proxy` | 空 | 抖音解析代理地址，国内服务器必填（如 `http://127.0.0.1:7890`） |
-| `HTTP_PROXY` / `HTTPS_PROXY` | 空 | 系统环境变量，音乐搜索等接口会自动走代理 |
+| `wxsph_cookie` | 空 | 视频号解析用的元宝 Cookie，也可用环境变量 `WXSPH_COOKIE` |
+| `xiaohongshu_cookie` | 空 | 小红书解析用的 Cookie |
+| `qqmusic_cookie` | 空 | QQ 音乐登录 Cookie（含 `uin`、`qqmusic_key`），配置后音乐搜索才返回播放地址，见 [API.md](API.md#qq-音乐搜索) |
+| `HTTP_PROXY` / `HTTPS_PROXY` | 空 | 系统环境变量，音乐搜索会走该代理 |
+
+> Cookie 类配置含个人登录态，只写在本地 `config.json`（已被 git 忽略），不要写进 `config.json.example` 或提交。
 
 > ⚠️ **`environment=production` 必须配合 HTTPS**：该模式下后台 Cookie 会带
 > `Secure` 属性，用纯 HTTP 访问时浏览器不会保存它，表现为"登录成功但一直是未登录状态"。
@@ -164,7 +179,8 @@ POST /manage-api/login      后台登录
 GET  /health                健康检查
 ```
 
-内置接口均挂在 `/api/` 下，完整列表启动后访问 `/portal/apis` 或 `/docs` 查看。
+内置接口均挂在 `/api/` 下，完整说明见 [API.md](API.md)，也可以启动后访问 `/portal/apis` 或 `/docs` 查看。
+只有 demo、ip、time、phone、word、freeapi、tools、spider 八个模块同时提供 `/api/v1/*` 路径。
 
 ## 静态数据
 
@@ -203,8 +219,9 @@ GET  /health                健康检查
 python -m pytest -q
 ```
 
-测试**不会**碰真实数据库：`tests/conftest.py` 在导入应用前把 `database_path`
-指向临时目录，会话结束后自动删除。
+测试**不会**碰真实数据库和真实凭据：`tests/conftest.py` 在导入应用前把 `database_path`
+指向临时目录（会话结束后自动删除），并固定测试用的 Admin-Token 和 Api-Key。
+所有上游请求都用 monkeypatch 替换，测试不需要联网。
 
 冒烟测试：
 
