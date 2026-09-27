@@ -116,6 +116,7 @@ async def earthquake_list(limit: int = Query(10, ge=1, le=50, description="返�
             verify=not (settings.debug and not settings.is_production),
         ) as client:
             resp = await client.get("https://api.wolfx.jp/jma_earthquake.json")
+            resp.raise_for_status()
             data = resp.json()
             # 截断返回数量
             if isinstance(data, list):

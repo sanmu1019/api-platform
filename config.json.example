@@ -11,6 +11,7 @@
   "enable_douyin": true,
   "douyin_proxy": "",
   "wxsph_cookie": "",
+  "qqmusic_cookie": "",
   "xiaohongshu_cookie": "",
   "require_api_key": false,
   "rate_limit_per_minute": 120,

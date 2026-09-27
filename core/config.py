@@ -39,6 +39,7 @@ class Settings(BaseModel):
     enable_douyin: bool = True
     douyin_proxy: str = ""
     wxsph_cookie: str = ""
+    qqmusic_cookie: str = ""
     xiaohongshu_cookie: str = ""
     require_api_key: bool = False
     rate_limit_per_minute: int = 120

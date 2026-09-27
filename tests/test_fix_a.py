@@ -135,3 +135,46 @@ def test_bilibili_proxy_falls_back_to_backup_url(monkeypatch) -> None:
     resp = _client().get("/api/bilibili/proxy?bvid=BV1xx411c7mD", headers=HEADERS)
     assert resp.status_code == 200
     assert tried == ["pcdn.example.cn", "upos.bilivideo.com"]
+
+
+def test_qq_login_parses_cookie() -> None:
+    from apis.music.route import _qq_login
+
+    assert _qq_login("uin=o0012345; qqmusic_key=Q_H_L_abc") == ("12345", "Q_H_L_abc")
+    assert _qq_login("uin=12345; qm_keyst=K") == ("12345", "K")
+    assert _qq_login("uin=12345") == ("", "")
+
+
+def test_qq_search_play_url_with_cookie(monkeypatch) -> None:
+    from core.config import settings
+
+    seen = {}
+
+    async def fake_get(self, url, *args, **kwargs):
+        if "client_search_cp" in url:
+            return httpx.Response(200, json={"data": {"song": {"list": [
+                {"songmid": "m1", "songname": "s", "singer": [{"name": "a"}], "albumname": "al"}]}}})
+        seen["cookie"] = (kwargs.get("headers") or {}).get("Cookie")
+        return httpx.Response(200, json={"req_0": {"code": 0, "data": {
+            "sip": ["https://cdn.example/"], "midurlinfo": [{"songmid": "m1", "purl": "C400m1.m4a?x=1"}]}}})
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    monkeypatch.setattr(settings, "qqmusic_cookie", "uin=1; qqmusic_key=k")
+    body = _client().get("/api/music/qq/search?keyword=x", headers=HEADERS).json()
+    assert seen["cookie"] == "uin=1; qqmusic_key=k"
+    assert body["data"][0]["play_url"] == "https://cdn.example/C400m1.m4a?x=1"
+    assert "note" not in body
+
+
+def test_qq_search_without_cookie_notes_missing(monkeypatch) -> None:
+    from core.config import settings
+
+    async def fake_get(self, url, *args, **kwargs):
+        return httpx.Response(200, json={"data": {"song": {"list": [{"songmid": "m1", "songname": "s"}]}}})
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    monkeypatch.setattr(settings, "qqmusic_cookie", "")
+    body = _client().get("/api/music/qq/search?keyword=x", headers=HEADERS).json()
+    assert body["data"][0]["play_url"] == ""
+    assert body["data"][0]["web_url"].endswith("/m1")
+    assert "qqmusic_cookie" in body["note"]

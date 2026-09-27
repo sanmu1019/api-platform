@@ -1085,8 +1085,6 @@ GET /api/tools2/earthquake?limit=10
 
 ### QQ 音乐搜索
 
-> 注：上游已不对匿名请求下发播放地址，`play_url` 目前总是空字符串。
-
 ```
 GET /api/music/qq/search?keyword=晴天&limit=10
 ```
@@ -1100,10 +1098,18 @@ GET /api/music/qq/search?keyword=晴天&limit=10
 
 **响应示例：**
 ```json
-{"code": 200, "msg": "success", "data": [{"title": "晴天", "author": "周杰伦", "album": "叶惠美", "songmid": "0039MnYb0qxYhV", "play_url": "https://isure.stream.qqmusic.qq.com/..."}], "total": 1}
+{"code": 200, "msg": "success", "data": [{"title": "晴天", "author": "周杰伦", "album": "叶惠美", "songmid": "0039MnYb0qxYhV", "play_url": "", "web_url": "https://y.qq.com/n/ryqq/songDetail/0039MnYb0qxYhV"}], "total": 1, "note": "未配置 qqmusic_cookie，QQ 音乐不对匿名请求下发播放地址"}
 ```
 
-`play_url` 可能为空（版权 / VIP 歌曲）。
+**播放地址：** QQ 音乐已不对匿名请求下发播放地址（免费歌也一样），`play_url` 默认为空，可用 `web_url` 跳转网页播放。
+如需直链，在 `config.json` 配置 `qqmusic_cookie`：登录 y.qq.com 后复制整串 Cookie，需含 `uin` 和 `qqmusic_key`（或 `qm_keyst`）。
+
+- 登录态几天到一个月会过期，过期后 `play_url` 重新变空，`note` 会提示，重新复制 Cookie 即可
+- 绿钻歌曲需要账号本身有绿钻
+- 直链约一天失效，不要缓存
+- 用个人登录态批量取直链并转发给第三方，违反 QQ 音乐用户协议，有封号风险，只建议低频私用
+
+`note` 字段只在没取到播放地址时出现。
 
 ---
 
@@ -1113,7 +1119,8 @@ GET /api/music/qq/search?keyword=晴天&limit=10
 GET /api/music/kugou/search?keyword=晴天&limit=10
 ```
 
-参数同 QQ 音乐搜索。
+参数同 QQ 音乐搜索。返回 `title` / `author` / `album` / `hash` / `cover` / `web_url`；
+酷狗取播放地址需要签名和登录态，`play_url` 固定为空，请用 `web_url`。
 
 **错误：** 未找到歌曲时返回 HTTP 404；上游异常时返回 HTTP 502。
 

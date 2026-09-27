@@ -20,6 +20,11 @@ from pathlib import Path
 # 独立于真实库的临时数据库；会话结束后整目录删除。
 _TEST_DB_DIR = Path(tempfile.mkdtemp(prefix="api-platform-tests-"))
 os.environ["API_PLATFORM_DATABASE_PATH"] = str(_TEST_DB_DIR / "test.sqlite3")
+# 固定测试凭据，不依赖本地 config.json 里的真实值（本地凭据轮换后测试照常可跑）。
+os.environ["API_PLATFORM_ADMIN_TOKEN"] = "admin888"
+os.environ["API_PLATFORM_DEFAULT_API_KEYS"] = "test123:测试用户"
+os.environ["API_PLATFORM_REQUIRE_API_KEY"] = "false"
+os.environ["API_PLATFORM_ENVIRONMENT"] = "development"
 
 
 def pytest_sessionfinish(session, exitstatus) -> None:  # noqa: ARG001

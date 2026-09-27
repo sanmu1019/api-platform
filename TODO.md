@@ -2,19 +2,14 @@
 
 > 来源：2026-09-27 文档与代码审查。已修复项见 git 历史，这里只列尚未处理的。
 
-## 安全（暂缓，项目目前仅本地运行）
+## 凭据（本地已于 2026-09-27 轮换，以下需人工处理）
 
-- [ ] 轮换测试报告中出现过的 Api-Key，以及 `config.json` / `config.production.json` 中的 admin_token、默认 Key、视频号与小红书 Cookie
-- [ ] 默认口令 `admin888` / 默认 Key `test123` 仅限开发使用，上线前必须修改
-
-## 功能
-
-- [ ] **QQ 音乐搜索的 `play_url` 始终为空**：上游 vkey 接口不再给匿名请求下发播放地址（改动前即如此）。需要登录 Cookie，或在文档中注明只返回搜索结果
+- [ ] **线上服务器**：本地 `config.production.json` 已换成新的 admin_token 和默认 Key，需同步到服务器并重启；服务器上旧 Key 仍有效，登录后台停用
+- [ ] **视频号 / 小红书 Cookie**：`config.json` 里的 `wxsph_cookie`、`xiaohongshu_cookie` 无法在本地轮换。在元宝和小红书网页端退出登录让旧会话失效，再重新登录复制新 Cookie
 
 ## 代码质量
 
 - [ ] **成功响应格式不统一**：如 music 多一个顶层 `total` 字段；错误响应已统一为「HTTP 状态码 + `{code, msg}`」
-- [ ] **测试覆盖仍有缺口**：domain、divination、wxsph、parse 正常路径、tools2 其余接口暂无用例
 
 ## 文档
 
